@@ -1,0 +1,57 @@
+---
+description: Architecture and development rules for the Volunteer Matching System
+alwaysApply: true
+---
+
+# Volunteer Matching System - Project Rules
+
+## General
+
+This project is a Volunteer Matching Information System.
+
+The system has two roles:
+- CLIENT
+- VOLUNTEER
+
+A single User may have one or both roles.
+
+Before implementing or modifying a feature, read the relevant documentation
+under the `/docs` directory.
+
+Do not invent new requirements or features that are not defined in the project
+documentation.
+
+## Backend Architecture
+
+- The backend must use Python and Flask.
+- Follow CQRS/MVC principles.
+- Separate Commands (write operations) from Queries (read operations).
+- Flask routes/controllers should remain thin.
+- Business logic should not be implemented directly inside routes.
+- Database access should be separated from HTTP handling.
+
+## Frontend
+
+- The frontend uses React with Vite.
+- Keep API communication separate from UI components.
+- Components should remain focused and reusable.
+
+## Data
+
+- PostgreSQL is the relational database.
+- Do not change the database schema without checking the data model documentation.
+- Event Sourcing requirements must be considered for state-changing business operations.
+
+## AI
+
+- AI matching is a separate concern from normal application logic.
+- Structured filtering such as availability, category, and location should not be replaced by semantic matching.
+- Semantic matching will use RAG and a Vector Database where appropriate.
+
+## Development
+
+- Implement one feature at a time.
+- Prefer simple solutions appropriate for a small academic project.
+- Avoid unnecessary abstractions and overengineering.
+- Add or update tests when implementing business logic.
+- Update relevant documentation when an architectural or functional decision changes.
