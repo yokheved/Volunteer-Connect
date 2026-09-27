@@ -161,9 +161,23 @@ Potential matches can then be evaluated by the AI matching process to provide mo
 
 ## 🤖 AI Volunteer Matching Agent
 
-VolunteerConnect includes an independent AI agent responsible for evaluating potential volunteer matches.
+VolunteerConnect includes an independent Deep Agent that runs as a separate background process and is responsible for evaluating potential volunteer matches.
 
 The agent processes volunteering requests and relevant volunteer information and evaluates the suitability of potential volunteers.
+
+The Deep Agent manages the matching workflow as follows:
+
+1. A client submits a new volunteering request through the application.
+2. Flask saves the request in the cloud-hosted database (Somee.com), using the existing Event Sourcing design.
+3. The system performs initial structured filtering, such as location and availability.
+4. The agent uses RAG and the vector database to retrieve potential volunteers based on semantic compatibility.
+5. The Deep Agent evaluates the candidates and may invoke `check_location_distance` to verify geographical compatibility.
+6. The agent uses Tavily through MCP when additional external information is relevant.
+7. The agent identifies the most suitable volunteer and produces a reasoned matching report.
+8. When an appropriate match is identified, the agent invokes `send_match_notification` to notify the volunteer by email.
+9. The matching results and report are saved back to the system and displayed in the UI.
+
+The volunteer still approves or rejects volunteering requests.
 
 The matching process may consider:
 
@@ -178,7 +192,7 @@ The agent can combine information from:
 
 - The relational database
 - A vector database using RAG
-- External services through MCP
+- External services through MCP, including Tavily for internet search
 
 A possible result:
 
@@ -391,7 +405,7 @@ The same authenticated user can therefore access both client and volunteer funct
 ### Database
 
 - PostgreSQL
-- Cloud-hosted database
+- Cloud-hosted database (Somee.com)
 
 ### Vector Search
 
@@ -402,7 +416,7 @@ The same authenticated user can therefore access both client and volunteer funct
 
 ### AI
 
-- Deep Agent
+- Deep Agent (separate background matching process)
 - Retrieval-Augmented Generation (RAG)
 - AI-based volunteer matching
 
@@ -410,7 +424,7 @@ The same authenticated user can therefore access both client and volunteer funct
 
 External services can be accessed through **MCP (Model Context Protocol)**.
 
-At least two MCP tools will be developed for the project.
+Two custom MCP tools will be developed for the project: `send_match_notification` and `check_location_distance`. In addition, Tavily will be used through MCP as an external internet search tool. Tavily is not one of the two custom MCP tools.
 
 ### Development
 
@@ -423,18 +437,18 @@ At least two MCP tools will be developed for the project.
 
 ## 🔧 MCP Tools
 
-The project includes custom MCP tools that allow the AI agent to interact with system information and external services.
-
-Possible tools include:
+The project includes two custom MCP tools that allow the Deep Agent to perform external actions that complement RAG. Semantic matching remains the responsibility of the RAG layer, not of these tools.
 
 ```text
-search_available_volunteers(...)
-get_volunteer_profile(...)
-get_volunteering_request(...)
-calculate_travel_distance(...)
+send_match_notification(...)
+check_location_distance(...)
 ```
 
-The final tools will be selected according to the implementation of the AI matching workflow.
+`send_match_notification` sends an automatic email to a volunteer when the Deep Agent identifies a highly suitable match between the volunteer and a volunteering request. The agent performs the matching using RAG and then invokes this tool to send the email with the relevant volunteering details. An email integration such as Gmail MCP may be used. This tool is responsible for the external notification action, not for semantic matching.
+
+`check_location_distance` checks the geographical distance or travel compatibility between a volunteer's location and the volunteering request's location. The agent invokes this tool when evaluating potential volunteers identified through the matching process. This complements RAG because semantic search cannot reliably calculate real geographical distances.
+
+In addition to these two custom MCP tools, the agent uses **Tavily** through MCP as an external internet search tool. Tavily is not one of the two MCP tools implemented by the project. The agent uses Tavily when external, up-to-date information is needed to enrich matching decisions, such as relevant guidelines, professional background, or environmental information.
 
 ---
 
@@ -512,6 +526,6 @@ VolunteerConnect/
 
 ## 👩‍💻 Authors
 
-###Yokheved Rose [mailto:yokheved.rose@gmail.com]
-###Yael Rosenbom [mailto:glick.yael3@gmail.com]
+### Yokheved Rose [Email](mailto:yokheved.rose@gmail.com)
+### Yael Rosenbom [Email](mailto:glick.yael3@gmail.com)
 Developed as a final project for the **Software Engineering in the AI Era** course at the Jerusalem College of Technology (JCT).
