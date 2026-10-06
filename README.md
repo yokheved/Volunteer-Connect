@@ -404,8 +404,8 @@ The same authenticated user can therefore access both client and volunteer funct
 
 ### Database
 
-- PostgreSQL
-- Cloud-hosted database (Somee.com)
+- Microsoft SQL Server
+- Cloud-hosted operational database (Somee.com)
 
 ### Vector Search
 
@@ -522,10 +522,43 @@ VolunteerConnect/
 
 🚧 Currently under development.
 
+### Our Workflow
+
+        ┌── Plan Agent ───────────┐
+        │   plans the feature     │
+        └────────────┬────────────┘
+                     ↓
+        ┌── Build Agent ──────────┐
+        │   implements feature    │
+        │   using the Skill       │
+        └────────────┬────────────┘
+                     ↓
+             Code Review Agent
+                     ↓
+              Review findings
+                     ↓
+                    YOU
+          accept / reject / modify
+                     ↓
+          Original Build Agent
+             implements fixes
+                     ↓
+                  Tests
+                     ↓
+              Debug Agent
+          investigates failures
+          and fixes actual bugs
+                     ↓
+                  Tests
+                     ↓
+               Final Review
+                     ↓
+                  Commit
+
 ---
 
 ## 👩‍💻 Authors
 
-### Yokheved Rose [Email](mailto:yokheved.rose@gmail.com)
-### Yael Rosenbom [Email](mailto:glick.yael3@gmail.com)
+### [Yokheved Rose](mailto:yokheved.rose@gmail.com)
+### [Yael Rosenbom](mailto:glick.yael3@gmail.com)
 Developed as a final project for the **Software Engineering in the AI Era** course at the Jerusalem College of Technology (JCT).
