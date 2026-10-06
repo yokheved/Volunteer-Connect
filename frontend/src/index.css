@@ -1,0 +1,135 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #1f2933;
+  background: #f4f1ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+main {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem;
+}
+
+.brand {
+  margin: 0 0 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #245b4f;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #d9d3c7;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.6rem;
+}
+
+.lede,
+.switch {
+  color: #52606d;
+}
+
+form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input:not([type]) {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #c5c0b5;
+  border-radius: 8px;
+  font: inherit;
+}
+
+fieldset {
+  border: 1px solid #d9d3c7;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.checkbox {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+button {
+  font: inherit;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  background: #245b4f;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+button.link {
+  background: none;
+  color: #245b4f;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.error {
+  color: #9b1c1c;
+  margin: 0;
+}
+
+.notice {
+  background: #e8f5e9;
+  color: #1b5e20;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 0 0 1rem;
+}
+
+.profile {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.4rem 0.8rem;
+  margin: 1.25rem 0;
+}
+
+.profile dt {
+  font-weight: 600;
+  color: #52606d;
+}
+
+.profile dd {
+  margin: 0;
+}

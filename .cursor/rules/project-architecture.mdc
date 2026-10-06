@@ -38,7 +38,7 @@ documentation.
 
 ## Data
 
-- PostgreSQL is the relational database.
+- Somee MS SQL Server is the operational relational database.
 - Do not change the database schema without checking the data model documentation.
 - Event Sourcing requirements must be considered for state-changing business operations.
 
