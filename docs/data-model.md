@@ -37,6 +37,10 @@ email
 password_hash
 phone
 address
+google_place_id
+latitude
+longitude
+location_cached_at
 is_client
 is_volunteer
 monthly_hours_goal
@@ -53,7 +57,11 @@ created_at
 | email | Login email |
 | password_hash | Secure password hash |
 | phone | User phone number |
-| address | User address/location |
+| address | String Human-readable address selected through Google Maps Places Autocomplete |
+| google_place_id | String Google Maps Place ID identifying the selected location. Stored permanently. |
+| latitude | Decimal Geographic latitude of the selected location |
+| longitude | Decimal Geographic longitude of the selected location |
+| location_cached_at | Timestamp when latitude and longitude were last stored |
 | is_client | Indicates CLIENT role |
 | is_volunteer | Indicates VOLUNTEER role |
 | monthly_hours_goal | Monthly volunteering goal |
@@ -61,6 +69,17 @@ created_at
 | created_at | Account creation timestamp |
 
 `monthly_hours_goal` and `about_me` are mainly relevant when the user has the VOLUNTEER role.
+
+**Location rules:**
+
+- Users select their address through Google Maps Places Autocomplete.
+- The Google Place ID identifies the selected location.
+- Latitude and longitude are used for geographic distance calculations.
+- When a user changes their address, the associated location information must be updated consistently.
+- The location information is shared across all roles of the same User.
+- Location changes should be reflected in the system's Event Sourcing mechanism.
+
+**Google Maps data policy:** Place IDs may be stored permanently. `address` is the formatted address the user confirmed for that account; it is not a shared geocoding cache. `latitude` and `longitude` are stored with `location_cached_at`. Google's current Places terms allow coordinates to be cached for 30 consecutive calendar days, after which they must be deleted. A later distance feature must treat coordinates older than 30 days as expired and refresh them with Place Details using the stored Place ID. This profile feature only records the timestamp; it does not refresh coordinates or implement `check_location_distance`. Do not draw these coordinates on a non-Google map. Showing the formatted address as text is allowed.
 
 ---
 

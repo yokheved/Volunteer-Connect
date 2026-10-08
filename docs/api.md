@@ -42,7 +42,10 @@ Example request:
   "email": "user@example.com",
   "password": "password",
   "phone": "0500000000",
-  "address": "Jerusalem",
+  "address": "1 Kikar Safra, Jerusalem, Israel",
+  "google_place_id": "ChIJi8mnMiQGhk8R0qK2G1jW7Zc",
+  "latitude": 31.7788,
+  "longitude": 35.2254,
   "roles": ["CLIENT", "VOLUNTEER"]
 }
 ```
@@ -65,6 +68,8 @@ The password must be at least 8 characters and must not be only whitespace.
 A duplicate email returns `409`.
 
 Invalid input, including a missing role list, returns `400`.
+
+Registration requires a Google Places selection: `address`, `google_place_id`, `latitude`, and `longitude` together. Free-text address without a place id returns `400`. Latitude must be between -90 and 90. Longitude must be between -180 and 180.
 
 ---
 
@@ -131,7 +136,9 @@ A missing, invalid, expired, or revoked token returns `401` with `{"error": "...
 GET /api/users/me
 ```
 
-Returns the authenticated user's profile.
+Returns the authenticated user's profile, including `address`, `google_place_id`, `latitude`, and `longitude`.
+
+The password is never returned.
 
 Requires `Authorization: Bearer <access_token>`.
 
@@ -149,15 +156,32 @@ Example request:
 
 ```json
 {
+  "current_password": "password",
   "name": "Example User",
   "phone": "0500000000",
-  "address": "Jerusalem",
+  "roles": ["CLIENT", "VOLUNTEER"],
+  "address": "1 Kikar Safra, Jerusalem, Israel",
+  "google_place_id": "ChIJi8mnMiQGhk8R0qK2G1jW7Zc",
+  "latitude": 31.7788,
+  "longitude": 35.2254,
+  "new_password": "newpassword",
+  "confirm_password": "newpassword",
   "about_me": "I enjoy helping elderly people.",
   "monthly_hours_goal": 20
 }
 ```
 
-Only the authenticated user's profile may be modified.
+Only the authenticated user's profile may be modified. The user id comes from the JWT.
+
+`current_password` is required. If it does not match, the API returns `401`, changes nothing, and writes no event.
+
+`email` cannot be changed. Sending `email` returns `400`.
+
+`new_password` and `confirm_password` are optional together. If either is sent, both are required, they must match, and the new password must be at least 8 characters. Omit both to leave the password unchanged.
+
+Address updates require the same four location fields as registration. An address without a place id or coordinates returns `400`. If the stored address is unchanged, resend the stored place id and coordinates.
+
+`about_me` and `monthly_hours_goal` are accepted only when the roles in this request include `VOLUNTEER`. A user who does not include `VOLUNTEER` in that request and sends either field receives `403`. A client may set those fields in the same save that adds the `VOLUNTEER` role.
 
 ---
 

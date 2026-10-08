@@ -1,10 +1,12 @@
+from tests.place_data import FIXTURE_PLACE
+
 VALID_USER = {
     "name": "Example User",
     "email": "user@example.com",
     "password": "password",
     "phone": "0500000000",
-    "address": "Jerusalem",
     "roles": ["CLIENT", "VOLUNTEER"],
+    **FIXTURE_PLACE,
 }
 
 
@@ -129,6 +131,33 @@ def test_get_current_user_with_token(client):
     body = response.get_json()
     assert body["email"] == VALID_USER["email"]
     assert body["roles"] == ["CLIENT", "VOLUNTEER"]
+
+
+def test_register_rejects_address_without_place(client):
+    payload = dict(VALID_USER)
+    del payload["google_place_id"]
+    del payload["latitude"]
+    del payload["longitude"]
+    payload["address"] = "Jerusalem"
+    response = client.post("/api/auth/register", json=payload)
+
+    assert response.status_code == 400
+
+
+def test_register_stores_place_fields(client):
+    response = _register(client)
+
+    assert response.status_code == 201
+    token = _login(client).get_json()["access_token"]
+    profile = client.get(
+        "/api/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+    ).get_json()
+
+    assert profile["address"] == FIXTURE_PLACE["address"]
+    assert profile["google_place_id"] == FIXTURE_PLACE["google_place_id"]
+    assert profile["latitude"] == FIXTURE_PLACE["latitude"]
+    assert profile["longitude"] == FIXTURE_PLACE["longitude"]
 
 
 def test_logout_then_token_is_rejected(client):

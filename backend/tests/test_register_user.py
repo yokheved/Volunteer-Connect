@@ -10,13 +10,15 @@ from app.models.user import User
 from app.persistence.event_repository import EventRepository
 
 
+from tests.place_data import FIXTURE_PLACE
+
 VALID_USER = {
     "name": "Example User",
     "email": "user@example.com",
     "password": "password",
     "phone": "0500000000",
-    "address": "Jerusalem",
     "roles": ["CLIENT"],
+    **FIXTURE_PLACE,
 }
 
 
@@ -36,6 +38,10 @@ def test_register_user_persists_user(app):
         assert stored.password_hash != VALID_USER["password"]
         assert stored.is_client is True
         assert stored.is_volunteer is False
+        assert stored.google_place_id == FIXTURE_PLACE["google_place_id"]
+        assert stored.latitude == FIXTURE_PLACE["latitude"]
+        assert stored.longitude == FIXTURE_PLACE["longitude"]
+        assert stored.location_cached_at is not None
 
 
 def test_register_user_writes_user_registered_event(app):
@@ -51,3 +57,8 @@ def test_register_user_writes_user_registered_event(app):
         assert payload["user_id"] == user.id
         assert payload["email"] == user.email
         assert payload["roles"] == ["CLIENT"]
+        assert payload["google_place_id"] == FIXTURE_PLACE["google_place_id"]
+        assert payload["latitude"] == FIXTURE_PLACE["latitude"]
+        assert payload["longitude"] == FIXTURE_PLACE["longitude"]
+        assert "password" not in payload
+        assert "password_hash" not in payload

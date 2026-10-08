@@ -4,9 +4,10 @@ from marshmallow import Schema, ValidationError as MarshmallowValidationError, f
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
+from app.commands.location import LocationFieldsSchema
 from app.errors import ConflictError, ValidationError
 from app.models.domain_event import DomainEvent
-from app.models.user import User
+from app.models.user import User, utc_now
 from app.persistence.event_repository import EventRepository
 from app.persistence.session import commit, flush, rollback
 from app.persistence.user_repository import UserRepository
@@ -14,12 +15,11 @@ from app.persistence.user_repository import UserRepository
 ALLOWED_ROLES = {"CLIENT", "VOLUNTEER"}
 
 
-class RegisterUserSchema(Schema):
+class RegisterUserSchema(LocationFieldsSchema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=8, max=255))
     phone = fields.Str(required=True, validate=validate.Length(min=1, max=50))
-    address = fields.Str(required=True, validate=validate.Length(min=1, max=500))
     roles = fields.List(fields.Str(), required=True)
 
     @pre_load
@@ -27,7 +27,7 @@ class RegisterUserSchema(Schema):
         if not isinstance(data, dict):
             return data
         stripped = dict(data)
-        for key in ("name", "email", "password", "phone", "address"):
+        for key in ("name", "email", "password", "phone", "address", "google_place_id"):
             value = stripped.get(key)
             if isinstance(value, str):
                 stripped[key] = value.strip()
@@ -46,7 +46,7 @@ class RegisterUser:
     def execute(self, data: dict) -> User:
         payload = self._validate(data)
         email = payload["email"].strip().lower()
-        roles = self._normalized_roles(payload["roles"])
+        roles = normalize_roles(payload["roles"])
 
         if self.users.get_by_email(email) is not None:
             raise ConflictError("Email is already registered")
@@ -57,6 +57,10 @@ class RegisterUser:
             password_hash=generate_password_hash(payload["password"]),
             phone=payload["phone"].strip(),
             address=payload["address"].strip(),
+            google_place_id=payload["google_place_id"],
+            latitude=payload["latitude"],
+            longitude=payload["longitude"],
+            location_cached_at=utc_now(),
             is_client="CLIENT" in roles,
             is_volunteer="VOLUNTEER" in roles,
         )
@@ -75,6 +79,10 @@ class RegisterUser:
                             "email": user.email,
                             "name": user.name,
                             "roles": user.roles(),
+                            "address": user.address,
+                            "google_place_id": user.google_place_id,
+                            "latitude": user.latitude,
+                            "longitude": user.longitude,
                         }
                     ),
                 )
@@ -93,26 +101,27 @@ class RegisterUser:
         try:
             return RegisterUserSchema().load(data)
         except MarshmallowValidationError as error:
-            raise ValidationError(_format_schema_errors(error.messages)) from error
+            raise ValidationError(format_schema_errors(error.messages)) from error
 
-    def _normalized_roles(self, roles: list[str]) -> list[str]:
-        if not roles:
+
+def normalize_roles(roles: list[str]) -> list[str]:
+    if not roles:
+        raise ValidationError("roles must include CLIENT and/or VOLUNTEER")
+
+    unique_roles = []
+    for role in roles:
+        normalized = role.strip().upper()
+        if normalized not in ALLOWED_ROLES:
             raise ValidationError("roles must include CLIENT and/or VOLUNTEER")
+        if normalized not in unique_roles:
+            unique_roles.append(normalized)
 
-        unique_roles = []
-        for role in roles:
-            normalized = role.strip().upper()
-            if normalized not in ALLOWED_ROLES:
-                raise ValidationError("roles must include CLIENT and/or VOLUNTEER")
-            if normalized not in unique_roles:
-                unique_roles.append(normalized)
-
-        if not unique_roles:
-            raise ValidationError("roles must include CLIENT and/or VOLUNTEER")
-        return unique_roles
+    if not unique_roles:
+        raise ValidationError("roles must include CLIENT and/or VOLUNTEER")
+    return unique_roles
 
 
-def _format_schema_errors(messages) -> str:
+def format_schema_errors(messages) -> str:
     if isinstance(messages, dict):
         parts = []
         for field, errors in messages.items():

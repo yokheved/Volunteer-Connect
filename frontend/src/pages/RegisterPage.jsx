@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import { registerUser } from "../services/authService";
 
 export default function RegisterPage({ onRegistered, onShowLogin }) {
@@ -8,6 +9,9 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
     password: "",
     phone: "",
     address: "",
+    google_place_id: "",
+    latitude: null,
+    longitude: null,
     isClient: true,
     isVolunteer: false,
   });
@@ -22,6 +26,19 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
     }));
   }
 
+  const handlePlaceSelected = useCallback((place) => {
+    setForm((current) => ({ ...current, ...place }));
+  }, []);
+
+  const handlePlaceCleared = useCallback(() => {
+    setForm((current) => ({
+      ...current,
+      google_place_id: "",
+      latitude: null,
+      longitude: null,
+    }));
+  }, []);
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
@@ -33,6 +50,10 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
       setError("Select at least one role.");
       return;
     }
+    if (!form.google_place_id) {
+      setError("Select an address from the Google suggestions.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -42,6 +63,9 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
         password: form.password,
         phone: form.phone,
         address: form.address,
+        google_place_id: form.google_place_id,
+        latitude: form.latitude,
+        longitude: form.longitude,
         roles,
       });
       onRegistered();
@@ -86,15 +110,13 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
           Phone
           <input name="phone" value={form.phone} onChange={updateField} required />
         </label>
-        <label>
-          Address
-          <input
-            name="address"
-            value={form.address}
-            onChange={updateField}
-            required
-          />
-        </label>
+        <AddressAutocomplete
+          id="register-address"
+          value={form.address}
+          onChange={(address) => setForm((current) => ({ ...current, address }))}
+          onPlaceSelected={handlePlaceSelected}
+          onPlaceCleared={handlePlaceCleared}
+        />
         <fieldset>
           <legend>Roles</legend>
           <label className="checkbox">

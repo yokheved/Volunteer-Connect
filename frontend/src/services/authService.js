@@ -36,3 +36,7 @@ export async function logoutUser() {
 export function getCurrentUser() {
   return apiRequest("/api/users/me");
 }
+
+export function updateCurrentUser(payload) {
+  return apiRequest("/api/users/me", { method: "PUT", body: payload });
+}
