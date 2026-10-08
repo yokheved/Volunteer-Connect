@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
+import PasswordField from "../components/PasswordField";
 import { registerUser } from "../services/authService";
 
 export default function RegisterPage({ onRegistered, onShowLogin }) {
@@ -7,6 +8,7 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
     name: "",
     email: "",
     password: "",
+    confirm_password: "",
     phone: "",
     address: "",
     google_place_id: "",
@@ -50,6 +52,10 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
       setError("Select at least one role.");
       return;
     }
+    if (form.password !== form.confirm_password) {
+      setError("Password and confirmation must match.");
+      return;
+    }
     if (!form.google_place_id) {
       setError("Select an address from the Google suggestions.");
       return;
@@ -61,6 +67,7 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
         name: form.name,
         email: form.email,
         password: form.password,
+        confirm_password: form.confirm_password,
         phone: form.phone,
         address: form.address,
         google_place_id: form.google_place_id,
@@ -95,17 +102,24 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
             required
           />
         </label>
-        <label>
-          Password
-          <input
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={updateField}
-            minLength={8}
-            required
-          />
-        </label>
+        <PasswordField
+          label="Password"
+          name="password"
+          value={form.password}
+          onChange={updateField}
+          minLength={8}
+          autoComplete="new-password"
+          required
+        />
+        <PasswordField
+          label="Confirm password"
+          name="confirm_password"
+          value={form.confirm_password}
+          onChange={updateField}
+          minLength={8}
+          autoComplete="new-password"
+          required
+        />
         <label>
           Phone
           <input name="phone" value={form.phone} onChange={updateField} required />

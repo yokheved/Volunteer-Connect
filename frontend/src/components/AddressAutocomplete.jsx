@@ -1,6 +1,63 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGooglePlaces } from "../services/googlePlaces";
 
+const FOCUS_BROWN = "#6b5344";
+const REST_BORDER = "#c5c0b5";
+
+function isBlue(color) {
+  const match = String(color).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!match) return false;
+  const red = Number(match[1]);
+  const green = Number(match[2]);
+  const blue = Number(match[3]);
+  return blue > 120 && blue > red + 30 && blue > green + 20;
+}
+
+function paintFocusBrown(widget) {
+  const root = widget.shadowRoot;
+  if (!root) return;
+  const nodes = [widget, ...root.querySelectorAll("*")];
+  for (const node of nodes) {
+    const style = getComputedStyle(node);
+    const blueBorder = isBlue(style.borderTopColor);
+    const blueOutline = isBlue(style.outlineColor);
+    const blueShadow = isBlue(style.boxShadow);
+    if (!blueBorder && !blueOutline && !blueShadow) continue;
+    if (blueBorder) node.style.setProperty("border-color", FOCUS_BROWN, "important");
+    if (blueOutline) node.style.setProperty("outline-color", FOCUS_BROWN, "important");
+    if (blueShadow) node.style.setProperty("box-shadow", "none", "important");
+  }
+}
+
+function installAddressStyles(widget) {
+  const root = widget.shadowRoot;
+  if (!root || root.querySelector("[data-address-focus]")) return;
+  const style = document.createElement("style");
+  style.dataset.addressFocus = "true";
+  style.textContent = `
+    :host {
+      --gmp-mat-color-primary: ${FOCUS_BROWN} !important;
+      --gmp-mat-color-outline: ${REST_BORDER} !important;
+      --md-sys-color-primary: ${FOCUS_BROWN} !important;
+    }
+    :host(:focus-within) {
+      border-color: ${FOCUS_BROWN} !important;
+      outline-color: ${FOCUS_BROWN} !important;
+    }
+    input, textarea {
+      border-color: ${REST_BORDER} !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    input:focus, input:focus-visible, textarea:focus {
+      border-color: ${FOCUS_BROWN} !important;
+      outline-color: ${FOCUS_BROWN} !important;
+      box-shadow: none !important;
+    }
+  `;
+  root.appendChild(style);
+}
+
 export default function AddressAutocomplete({
   id,
   value,
@@ -8,48 +65,83 @@ export default function AddressAutocomplete({
   onPlaceSelected,
   onPlaceCleared,
 }) {
-  const inputRef = useRef(null);
-  const selectedTextsRef = useRef(new Set());
+  const hostRef = useRef(null);
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  const onPlaceSelectedRef = useRef(onPlaceSelected);
+  const onPlaceClearedRef = useRef(onPlaceCleared);
   const applyingSelectionRef = useRef(false);
   const [mapsError, setMapsError] = useState("");
 
+  valueRef.current = value;
+  onChangeRef.current = onChange;
+  onPlaceSelectedRef.current = onPlaceSelected;
+  onPlaceClearedRef.current = onPlaceCleared;
+
   useEffect(() => {
     let cancelled = false;
-    let listener;
-    let autocomplete;
+    let widget;
 
     loadGooglePlaces()
       .then(() => {
-        if (cancelled || !inputRef.current) {
+        if (cancelled || !hostRef.current) {
           return;
         }
-        if (!window.google?.maps?.places?.Autocomplete) {
+        const PlaceAutocompleteElement = window.google?.maps?.places?.PlaceAutocompleteElement;
+        if (typeof PlaceAutocompleteElement !== "function") {
           throw new Error("Google Maps Places library failed to load.");
         }
-        autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-          fields: ["place_id", "formatted_address", "geometry", "name"],
-          types: ["geocode"],
+        widget = new PlaceAutocompleteElement();
+        widget.id = id;
+        widget.value = valueRef.current || "";
+        hostRef.current.replaceChildren(widget);
+        installAddressStyles(widget);
+        widget.addEventListener("focusin", () => {
+          paintFocusBrown(widget);
+          window.requestAnimationFrame(() => paintFocusBrown(widget));
         });
-        listener = autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          const location = place.geometry?.location;
-          if (!place.place_id || !place.formatted_address || !location) {
-            onPlaceCleared();
+
+        widget.addEventListener("input", () => {
+          if (applyingSelectionRef.current) {
             return;
           }
+          onChangeRef.current(widget.value || "");
+          onPlaceClearedRef.current();
+        });
+
+        widget.addEventListener("gmp-select", async (event) => {
           applyingSelectionRef.current = true;
-          selectedTextsRef.current = new Set(
-            [place.formatted_address, place.name, inputRef.current?.value].filter(Boolean),
-          );
-          onPlaceSelected({
-            address: place.formatted_address,
-            google_place_id: place.place_id,
-            latitude: location.lat(),
-            longitude: location.lng(),
-          });
-          window.setTimeout(() => {
-            applyingSelectionRef.current = false;
-          }, 0);
+          try {
+            const placePrediction = event.placePrediction;
+            const place = placePrediction.toPlace();
+            await place.fetchFields({
+              fields: ["id", "formattedAddress", "location"],
+            });
+            const location = place.location;
+            const latitude =
+              location && (typeof location.lat === "function" ? location.lat() : location.lat);
+            const longitude =
+              location && (typeof location.lng === "function" ? location.lng() : location.lng);
+            const placeId = place.id || placePrediction.placeId || "";
+            const address = place.formattedAddress || "";
+            if (!placeId || !address || latitude == null || longitude == null) {
+              onPlaceClearedRef.current();
+              return;
+            }
+            onChangeRef.current(address);
+            onPlaceSelectedRef.current({
+              address,
+              google_place_id: placeId,
+              latitude,
+              longitude,
+            });
+          } catch {
+            onPlaceClearedRef.current();
+          } finally {
+            window.setTimeout(() => {
+              applyingSelectionRef.current = false;
+            }, 0);
+          }
         });
       })
       .catch((error) => {
@@ -58,37 +150,14 @@ export default function AddressAutocomplete({
 
     return () => {
       cancelled = true;
-      if (listener) {
-        window.google?.maps?.event?.removeListener(listener);
-      }
-      if (autocomplete) {
-        window.google?.maps?.event?.clearInstanceListeners(autocomplete);
-      }
+      widget?.remove();
     };
-  }, [onPlaceCleared, onPlaceSelected]);
-
-  function handleChange(event) {
-    const text = event.target.value;
-    onChange(text);
-    if (applyingSelectionRef.current || selectedTextsRef.current.has(text)) {
-      return;
-    }
-    selectedTextsRef.current = new Set();
-    onPlaceCleared();
-  }
+  }, [id]);
 
   return (
-    <label htmlFor={id}>
+    <label htmlFor={id} className="address-field">
       Address
-      <input
-        id={id}
-        ref={inputRef}
-        name="address"
-        value={value}
-        onChange={handleChange}
-        autoComplete="off"
-        required
-      />
+      <div ref={hostRef} />
       {mapsError ? <p className="error">{mapsError}</p> : null}
     </label>
   );

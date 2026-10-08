@@ -13,7 +13,7 @@ def app(tmp_path):
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": database_uri,
             "JWT_SECRET_KEY": "test-secret-key-must-be-at-least-32-chars",
-            "FRONTEND_ORIGIN": "http://localhost:5173",
+            "FRONTEND_ORIGIN": "http://localhost:5174",
         }
     )
     yield application

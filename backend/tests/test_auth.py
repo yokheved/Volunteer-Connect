@@ -4,6 +4,7 @@ VALID_USER = {
     "name": "Example User",
     "email": "user@example.com",
     "password": "password",
+    "confirm_password": "password",
     "phone": "0500000000",
     "roles": ["CLIENT", "VOLUNTEER"],
     **FIXTURE_PLACE,
@@ -56,6 +57,23 @@ def test_register_rejects_omitted_roles(client):
 
     assert response.status_code == 400
     assert "roles" in response.get_json()["error"].lower()
+
+
+def test_register_rejects_mismatched_confirm_password(client):
+    response = _register(client, confirm_password="different")
+
+    assert response.status_code == 400
+    assert "confirm_password" in response.get_json()["error"].lower()
+    assert "match" in response.get_json()["error"].lower()
+
+
+def test_register_rejects_missing_confirm_password(client):
+    payload = dict(VALID_USER)
+    del payload["confirm_password"]
+    response = client.post("/api/auth/register", json=payload)
+
+    assert response.status_code == 400
+    assert "confirm_password" in response.get_json()["error"].lower()
 
 
 def test_register_rejects_short_password(client):

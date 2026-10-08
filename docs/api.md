@@ -41,6 +41,7 @@ Example request:
   "name": "Example User",
   "email": "user@example.com",
   "password": "password",
+  "confirm_password": "password",
   "phone": "0500000000",
   "address": "1 Kikar Safra, Jerusalem, Israel",
   "google_place_id": "ChIJi8mnMiQGhk8R0qK2G1jW7Zc",
@@ -63,7 +64,7 @@ Example response:
 
 The password itself is never stored or returned.
 
-The password must be at least 8 characters and must not be only whitespace.
+The password must be at least 8 characters and must not be only whitespace. `confirm_password` is required. It must match `password`. A missing confirmation or a mismatch returns `400`, and no account is created.
 
 A duplicate email returns `409`.
 

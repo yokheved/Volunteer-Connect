@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PasswordField from "../components/PasswordField";
 import { loginUser } from "../services/authService";
 
 export default function LoginPage({ onLoggedIn, onShowRegister }) {
@@ -40,16 +41,14 @@ export default function LoginPage({ onLoggedIn, onShowRegister }) {
             required
           />
         </label>
-        <label>
-          Password
-          <input
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={updateField}
-            required
-          />
-        </label>
+        <PasswordField
+          label="Password"
+          name="password"
+          value={form.password}
+          onChange={updateField}
+          autoComplete="current-password"
+          required
+        />
         {error ? <p className="error">{error}</p> : null}
         <button type="submit" disabled={submitting}>
           {submitting ? "Signing in..." : "Log in"}

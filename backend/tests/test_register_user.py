@@ -16,6 +16,7 @@ VALID_USER = {
     "name": "Example User",
     "email": "user@example.com",
     "password": "password",
+    "confirm_password": "password",
     "phone": "0500000000",
     "roles": ["CLIENT"],
     **FIXTURE_PLACE,

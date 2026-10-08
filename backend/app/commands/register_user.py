@@ -19,6 +19,7 @@ class RegisterUserSchema(LocationFieldsSchema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=8, max=255))
+    confirm_password = fields.Str(required=True, validate=validate.Length(min=8, max=255))
     phone = fields.Str(required=True, validate=validate.Length(min=1, max=50))
     roles = fields.List(fields.Str(), required=True)
 
@@ -27,7 +28,7 @@ class RegisterUserSchema(LocationFieldsSchema):
         if not isinstance(data, dict):
             return data
         stripped = dict(data)
-        for key in ("name", "email", "password", "phone", "address", "google_place_id"):
+        for key in ("name", "email", "password", "confirm_password", "phone", "address", "google_place_id"):
             value = stripped.get(key)
             if isinstance(value, str):
                 stripped[key] = value.strip()
@@ -99,9 +100,12 @@ class RegisterUser:
 
     def _validate(self, data: dict) -> dict:
         try:
-            return RegisterUserSchema().load(data)
+            payload = RegisterUserSchema().load(data)
         except MarshmallowValidationError as error:
             raise ValidationError(format_schema_errors(error.messages)) from error
+        if payload["password"] != payload["confirm_password"]:
+            raise ValidationError("password and confirm_password must match")
+        return payload
 
 
 def normalize_roles(roles: list[str]) -> list[str]:
