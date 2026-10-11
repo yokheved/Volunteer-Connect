@@ -52,12 +52,14 @@ Logout revokes the current access token in this application process using an in-
 # User Profile
 
 Users can view and update their personal information.
+Before any update, the user must enter his current password.
 
 Possible editable fields include:
 
 - Name
 - Phone
 - Address
+- Roles
 
 Volunteer-specific profile fields include:
 
@@ -65,6 +67,36 @@ Volunteer-specific profile fields include:
 - Monthly volunteering-hours goal
 - Volunteering categories
 - Availability
+
+## Change Password
+
+Authenticated users can change their account password.
+
+To change the password, the user must:
+
+1. Enter a new password.
+2. Confirm the new password.
+
+The system verifies that the current password is correct and that the new password meets the password requirements.
+
+If validation succeeds, the password is securely hashed and updated in the system.
+
+If the current password is incorrect or the new passwords do not match, an appropriate error message is displayed.
+
+The user's existing password is never stored or exposed in plain text.
+
+### Google Maps Address Autocomplete
+
+When a user registers or updates their address, the system must use Google Maps Places Autocomplete to provide real-time address suggestions.
+
+- Users must select an address from Google's suggestions rather than submitting arbitrary free-text input.
+- After selecting an address, the system retrieves the corresponding Google Place ID and geographic coordinates.
+- The selected location is associated with the user's profile.
+- The address field must be validated before saving.
+- If the user edits the address after selecting a suggestion, they must select a valid suggestion again.
+- The stored location information will support future volunteer matching and the `check_location_distance` MCP Tool.
+
+The integration should use Google Maps Platform and follow its API usage and data storage policies.
 
 ---
 
