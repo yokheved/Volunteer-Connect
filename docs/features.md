@@ -108,11 +108,14 @@ Volunteers can select the types of volunteering activities they are interested i
 
 Examples may include:
 
-- Elderly assistance
-- Shopping
+- Elderly Assistance
 - Transportation
+- Shopping
 - Tutoring
-- Technical assistance
+- Technical Help
+- Childcare Support
+- Cooking
+- Cleaning
 
 A volunteer may select multiple categories.
 
@@ -417,6 +420,8 @@ Examples include:
 
 ```text
 UserRegistered
+UserProfileUpdated
+VolunteerCategoriesUpdated
 VolunteerAvailabilityUpdated
 VolunteerRequestCreated
 VolunteerRequestApproved

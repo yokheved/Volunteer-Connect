@@ -103,9 +103,11 @@ Shopping
 Tutoring
 Technical Help
 Childcare Support
+Cooking
+Cleaning
 ```
 
-The exact category list may be defined during implementation.
+The allowed category list is those eight strings.
 
 A volunteer may select multiple categories.
 

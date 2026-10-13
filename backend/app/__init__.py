@@ -39,12 +39,14 @@ def create_app(config_overrides: dict | None = None) -> Flask:
         },
     )
 
-    from app.models import DomainEvent, User  # noqa: F401
+    from app.models import DomainEvent, User, VolunteerCategory  # noqa: F401
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
+    from app.routes.volunteers import volunteers_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(volunteers_bp)
     _register_error_handlers(app)
     _register_jwt_handlers(app)
 

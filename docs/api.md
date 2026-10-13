@@ -188,6 +188,34 @@ Address updates require the same four location fields as registration. An addres
 
 # Volunteer Categories
 
+Allowed category strings:
+
+```text
+Elderly Assistance
+Transportation
+Shopping
+Tutoring
+Technical Help
+Childcare Support
+Cooking
+Cleaning
+```
+
+`PUT` replaces the volunteer's entire selection. An empty `categories` array is valid and clears the selection. Any other string, a blank value, or a duplicate in the same request returns `400`.
+
+Both endpoints require `Authorization: Bearer <access_token>` and the VOLUNTEER role. The volunteer id comes from the JWT. A missing, invalid, expired, or revoked token returns `401`. A user without the VOLUNTEER role receives `403`. Current password is not required.
+
+Both GET and PUT return:
+
+```json
+{
+  "categories": [
+    "Elderly Assistance",
+    "Shopping"
+  ]
+}
+```
+
 ## Get Volunteer Categories
 
 ```http
@@ -558,6 +586,10 @@ POST /auth/register
         ↓
 RegisterUserCommand
 
+PUT /volunteers/me/categories
+        ↓
+UpdateVolunteerCategories
+
 POST /requests
         ↓
 CreateVolunteerRequestCommand
@@ -572,6 +604,10 @@ Read-only endpoints invoke Queries.
 Examples:
 
 ```text
+GET /volunteers/me/categories
+        ↓
+GetVolunteerCategories
+
 GET /volunteers
         ↓
 SearchVolunteersQuery

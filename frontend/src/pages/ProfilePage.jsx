@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import PasswordField from "../components/PasswordField";
+import VolunteerCategories from "../components/VolunteerCategories";
 import {
   getCurrentUser,
   loginUser,
@@ -231,6 +232,7 @@ export default function ProfilePage({ onLoggedOut }) {
   }
 
   return (
+    <>
     <section className="card">
       <h1>Your profile</h1>
       {mode === "view" ? (
@@ -405,5 +407,9 @@ export default function ProfilePage({ onLoggedOut }) {
         </button>
       ) : null}
     </section>
+    {user?.roles.includes("VOLUNTEER") ? (
+      <VolunteerCategories onLoggedOut={onLoggedOut} />
+    ) : null}
+    </>
   );
 }
