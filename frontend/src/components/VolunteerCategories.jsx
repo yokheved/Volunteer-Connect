@@ -9,6 +9,7 @@ import {
 export default function VolunteerCategories({ onLoggedOut }) {
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -19,6 +20,7 @@ export default function VolunteerCategories({ onLoggedOut }) {
       .then((data) => {
         if (cancelled) return;
         setSelected(data.categories || []);
+        setLoaded(true);
         setLoading(false);
       })
       .catch((err) => {
@@ -28,6 +30,7 @@ export default function VolunteerCategories({ onLoggedOut }) {
           onLoggedOut(err.message);
           return;
         }
+        setLoaded(false);
         setError(err.message);
         setLoading(false);
       });
@@ -35,6 +38,28 @@ export default function VolunteerCategories({ onLoggedOut }) {
       cancelled = true;
     };
   }, [onLoggedOut]);
+
+  function loadCategories() {
+    setLoading(true);
+    setError("");
+    setNotice("");
+    getMyCategories()
+      .then((data) => {
+        setSelected(data.categories || []);
+        setLoaded(true);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.status === 401) {
+          setStoredToken(null);
+          onLoggedOut(err.message);
+          return;
+        }
+        setLoaded(false);
+        setError(err.message);
+        setLoading(false);
+      });
+  }
 
   function toggle(category) {
     setSelected((current) =>
@@ -46,6 +71,9 @@ export default function VolunteerCategories({ onLoggedOut }) {
 
   async function handleSave(event) {
     event.preventDefault();
+    if (!loaded || loading) {
+      return;
+    }
     setError("");
     setNotice("");
     setSaving(true);
@@ -70,6 +98,20 @@ export default function VolunteerCategories({ onLoggedOut }) {
       <section className="card">
         <h2>Volunteering categories</h2>
         <p>Loading categories...</p>
+      </section>
+    );
+  }
+
+  if (!loaded) {
+    return (
+      <section className="card">
+        <h2>Volunteering categories</h2>
+        {error ? <p className="error">{error}</p> : (
+          <p className="error">Categories could not be loaded.</p>
+        )}
+        <button type="button" className="secondary" onClick={loadCategories}>
+          Try again
+        </button>
       </section>
     );
   }

@@ -26,6 +26,16 @@ VOLUNTEER = {
     **FIXTURE_PLACE,
 }
 
+BOTH_ROLES = {
+    "name": "Both Roles User",
+    "email": "both-categories@example.com",
+    "password": "password",
+    "confirm_password": "password",
+    "phone": "0500000003",
+    "roles": ["CLIENT", "VOLUNTEER"],
+    **FIXTURE_PLACE,
+}
+
 FIRST_SELECTION = ["Elderly Assistance", "Shopping", "Transportation"]
 REPLACEMENT = ["Cooking", "Cleaning"]
 
@@ -221,6 +231,56 @@ def test_client_only_user_receives_403_on_get_and_put(client, app):
     user_id = _user_id(app, CLIENT["email"])
     assert _stored_categories(app, user_id) == []
     assert _category_events(app, user_id) == []
+
+
+def test_user_with_both_roles_can_get_and_put_categories(client, app):
+    headers = _auth_header(client, BOTH_ROLES)
+
+    empty = client.get("/api/volunteers/me/categories", headers=headers)
+    assert empty.status_code == 200
+    assert empty.get_json() == {"categories": []}
+
+    saved = client.put(
+        "/api/volunteers/me/categories",
+        headers=headers,
+        json={"categories": ["Tutoring", "Cooking"]},
+    )
+    assert saved.status_code == 200
+    assert saved.get_json()["categories"] == ["Cooking", "Tutoring"]
+
+    volunteer_id = _user_id(app, BOTH_ROLES["email"])
+    assert _stored_categories(app, volunteer_id) == ["Cooking", "Tutoring"]
+    events = _category_events(app, volunteer_id)
+    assert len(events) == 1
+    assert json.loads(events[0].event_data)["volunteer_id"] == volunteer_id
+
+
+def test_overlapping_replace_keeps_only_the_new_rows(client, app):
+    headers = _auth_header(client, VOLUNTEER)
+    first = ["Shopping", "Transportation"]
+    second = ["Shopping", "Cooking"]
+
+    client.put(
+        "/api/volunteers/me/categories",
+        headers=headers,
+        json={"categories": first},
+    )
+    response = client.put(
+        "/api/volunteers/me/categories",
+        headers=headers,
+        json={"categories": second},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["categories"] == sorted(second)
+
+    volunteer_id = _user_id(app, VOLUNTEER["email"])
+    stored = _stored_categories(app, volunteer_id)
+    assert stored == sorted(second)
+    assert "Transportation" not in stored
+    events = _category_events(app, volunteer_id)
+    assert len(events) == 2
+    assert json.loads(events[-1].event_data)["categories"] == second
 
 
 def test_missing_token_returns_401(client):
