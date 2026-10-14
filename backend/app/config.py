@@ -94,3 +94,9 @@ class Config:
     JWT_BLOCKLIST_ENABLED = True
     JWT_BLOCKLIST_TOKEN_CHECKS = ["access"]
     FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5174")
+    LOG_DIR = os.getenv(
+        "LOG_DIR",
+        str(Path(__file__).resolve().parent.parent / "logs"),
+    )
+    LOG_MAX_BYTES = int(os.getenv("LOG_MAX_BYTES", "1048576"))
+    LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "5"))

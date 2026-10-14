@@ -346,6 +346,16 @@ Example:
                   Database
 ```
 
+### Logging
+
+The Flask backend writes rotating files under `backend/logs/`:
+
+- `access.log` — one line per HTTP request
+- `app.log` — application messages
+- `error.log` — errors and unhandled exceptions
+
+These files are operational logs, not domain events.
+
 ---
 
 ## 📝 Event Sourcing

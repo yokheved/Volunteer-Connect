@@ -31,3 +31,7 @@ Status:
 - APPROVED
 - REJECTED
 - COMPLETED
+
+## Non-functional
+- The backend writes request, application, and error logs to rotating files.
+- Passwords and tokens are not written to those logs.

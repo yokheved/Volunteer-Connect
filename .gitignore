@@ -16,3 +16,6 @@ dist/
 
 # Local SQLite files used for tests or offline development
 *.db
+
+# Backend rotating logs
+backend/logs/

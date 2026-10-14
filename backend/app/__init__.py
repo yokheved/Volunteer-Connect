@@ -1,9 +1,10 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 from app.config import Config, build_database_uri
 from app.errors import AppError
 from app.extensions import cors, db, jwt
+from app.logging_config import configure_logging
 
 
 def create_app(config_overrides: dict | None = None) -> Flask:
@@ -13,6 +14,8 @@ def create_app(config_overrides: dict | None = None) -> Flask:
         app.config.update(config_overrides)
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
         app.config["SQLALCHEMY_DATABASE_URI"] = build_database_uri()
+
+    access_logger = configure_logging(app)
 
     uri = app.config.get("SQLALCHEMY_DATABASE_URI") or ""
     if uri.startswith("mssql+pyodbc"):
@@ -49,6 +52,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(volunteers_bp)
     _register_error_handlers(app)
     _register_jwt_handlers(app)
+    _register_request_logging(app, access_logger)
 
     with app.app_context():
         db.create_all()
@@ -57,6 +61,24 @@ def create_app(config_overrides: dict | None = None) -> Flask:
         ensure_user_location_columns()
 
     return app
+
+
+def _register_request_logging(app: Flask, access_logger) -> None:
+    @app.after_request
+    def log_request(response):
+        try:
+            origin = request.headers.get("Origin") or "-"
+            access_logger.info(
+                "ip=%s origin=%s method=%s path=%s status=%s",
+                request.remote_addr or "-",
+                origin,
+                request.method,
+                request.path,
+                response.status_code,
+            )
+        except Exception:
+            pass
+        return response
 
 
 def _register_error_handlers(app: Flask) -> None:

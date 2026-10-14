@@ -2,6 +2,7 @@ import pytest
 
 from app import create_app
 from app.extensions import db, jwt_blocklist
+from app.logging_config import close_logging
 
 
 @pytest.fixture
@@ -14,10 +15,12 @@ def app(tmp_path):
             "SQLALCHEMY_DATABASE_URI": database_uri,
             "JWT_SECRET_KEY": "test-secret-key-must-be-at-least-32-chars",
             "FRONTEND_ORIGIN": "http://localhost:5174",
+            "LOG_DIR": str(tmp_path / "logs"),
         }
     )
     yield application
     jwt_blocklist.clear()
+    close_logging(application)
     with application.app_context():
         db.drop_all()
         db.session.remove()

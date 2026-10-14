@@ -446,6 +446,24 @@ Examples:
 
 ---
 
+# Logging
+
+The backend writes operational logs to rotating files under `backend/logs/`. This is request and application monitoring. It is not Event Sourcing, and request log lines are not domain events.
+
+The files are:
+
+```text
+access.log  — one line per HTTP request, including CORS preflight
+app.log     — application messages at INFO and above
+error.log   — ERROR and above, including unhandled exceptions
+```
+
+Each access line records timestamp, level, client IP, Origin (or `-`), method, URL path without the query string, and status code. Request bodies, the `Authorization` header, cookies, and JWTs are not logged.
+
+Each file rotates at 1 MB and keeps 5 backups (about 6 MB per stream). Logging setup or write failures must not prevent the API from starting or returning a response.
+
+---
+
 # Main Architectural Principles
 
 The project follows several principles:
