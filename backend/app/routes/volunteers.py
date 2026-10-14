@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from app.commands.update_volunteer_availability import UpdateVolunteerAvailability
 from app.commands.update_volunteer_categories import UpdateVolunteerCategories
+from app.queries.get_volunteer_availability import GetVolunteerAvailability
 from app.queries.get_volunteer_categories import GetVolunteerCategories
 
 volunteers_bp = Blueprint("volunteers", __name__, url_prefix="/api/volunteers")
@@ -18,6 +20,23 @@ def get_my_categories():
 def update_my_categories():
     return jsonify(
         UpdateVolunteerCategories().execute(
+            int(get_jwt_identity()),
+            request.get_json(silent=True) or {},
+        )
+    ), 200
+
+
+@volunteers_bp.get("/me/availability")
+@jwt_required()
+def get_my_availability():
+    return jsonify(GetVolunteerAvailability().execute(int(get_jwt_identity()))), 200
+
+
+@volunteers_bp.put("/me/availability")
+@jwt_required()
+def update_my_availability():
+    return jsonify(
+        UpdateVolunteerAvailability().execute(
             int(get_jwt_identity()),
             request.get_json(silent=True) or {},
         )

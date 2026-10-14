@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import PasswordField from "../components/PasswordField";
+import VolunteerAvailability from "../components/VolunteerAvailability";
 import VolunteerCategories from "../components/VolunteerCategories";
 import {
   getCurrentUser,
@@ -87,31 +88,6 @@ export default function ProfilePage({ onLoggedOut }) {
 
   function updateField(event) {
     const { name, value, type, checked } = event.target;
-    // #region agent log
-    if (name === "isVolunteer") {
-      fetch("http://127.0.0.1:7435/ingest/9b4fa94a-b436-42f4-8a45-dbb7a509d7d4", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "09a427",
-        },
-        body: JSON.stringify({
-          sessionId: "09a427",
-          runId: "pre-fix",
-          hypothesisId: "H1",
-          location: "ProfilePage.jsx:updateField",
-          message: "Volunteer role checkbox changed",
-          data: {
-            checked,
-            mode,
-            savedRoles: user?.roles || [],
-            formIsVolunteerBefore: form.isVolunteer,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }
-    // #endregion
     setForm((current) => ({
       ...current,
       [name]: type === "checkbox" ? checked : value,
@@ -132,27 +108,6 @@ export default function ProfilePage({ onLoggedOut }) {
   }, []);
 
   function showDetails(profile) {
-    // #region agent log
-    fetch("http://127.0.0.1:7435/ingest/9b4fa94a-b436-42f4-8a45-dbb7a509d7d4", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "09a427",
-      },
-      body: JSON.stringify({
-        sessionId: "09a427",
-        runId: "pre-fix",
-        hypothesisId: "H2",
-        location: "ProfilePage.jsx:showDetails",
-        message: "Profile saved into local user state",
-        data: {
-          returnedRoles: profile?.roles || [],
-          stillShowsCategories: !!(profile?.roles || []).includes("VOLUNTEER"),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     setUser(profile);
     setForm(profileToForm(profile));
     setMode("view");
@@ -242,28 +197,6 @@ export default function ProfilePage({ onLoggedOut }) {
       payload.monthly_hours_goal =
         form.monthly_hours_goal === "" ? null : Number(form.monthly_hours_goal);
     }
-    // #region agent log
-    fetch("http://127.0.0.1:7435/ingest/9b4fa94a-b436-42f4-8a45-dbb7a509d7d4", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "09a427",
-      },
-      body: JSON.stringify({
-        sessionId: "09a427",
-        runId: "pre-fix",
-        hypothesisId: "H5",
-        location: "ProfilePage.jsx:handleSubmit",
-        message: "Profile save payload roles",
-        data: {
-          formIsVolunteer: form.isVolunteer,
-          formIsClient: form.isClient,
-          roles,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     setSubmitting(true);
     try {
@@ -300,32 +233,7 @@ export default function ProfilePage({ onLoggedOut }) {
   }
 
   const savedVolunteer = !!(user?.roles || []).includes("VOLUNTEER");
-  const showCategories = form.isVolunteer;
-
-  // #region agent log
-  fetch("http://127.0.0.1:7435/ingest/9b4fa94a-b436-42f4-8a45-dbb7a509d7d4", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "09a427",
-    },
-    body: JSON.stringify({
-      sessionId: "09a427",
-      runId: "post-fix",
-      hypothesisId: "H1",
-      location: "ProfilePage.jsx:render",
-      message: "Whether categories card is shown",
-      data: {
-        mode,
-        formIsVolunteer: form.isVolunteer,
-        savedRoles: user?.roles || [],
-        savedVolunteer,
-        showCategories,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  const showVolunteerSections = form.isVolunteer;
 
   return (
     <>
@@ -503,11 +411,19 @@ export default function ProfilePage({ onLoggedOut }) {
         </button>
       ) : null}
     </section>
-    {showCategories ? (
-      <VolunteerCategories
-        onLoggedOut={onLoggedOut}
-        canLoad={savedVolunteer}
-      />
+    {showVolunteerSections ? (
+      <>
+        <VolunteerCategories
+          key={savedVolunteer ? "categories-saved" : "categories-draft"}
+          onLoggedOut={onLoggedOut}
+          canLoad={savedVolunteer}
+        />
+        <VolunteerAvailability
+          key={savedVolunteer ? "availability-saved" : "availability-draft"}
+          onLoggedOut={onLoggedOut}
+          canLoad={savedVolunteer}
+        />
+      </>
     ) : null}
     </>
   );

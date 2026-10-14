@@ -21,3 +21,24 @@ export function updateMyCategories(categories) {
     body: { categories },
   });
 }
+
+export const DAYS_OF_WEEK = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
+
+export function getMyAvailability() {
+  return apiRequest("/api/volunteers/me/availability");
+}
+
+export function updateMyAvailability(availability) {
+  return apiRequest("/api/volunteers/me/availability", {
+    method: "PUT",
+    body: { availability },
+  });
+}

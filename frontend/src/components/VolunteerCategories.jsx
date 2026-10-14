@@ -7,27 +7,9 @@ import {
 } from "../services/volunteerService";
 
 export default function VolunteerCategories({ onLoggedOut, canLoad = true }) {
-  // #region agent log
-  fetch("http://127.0.0.1:7435/ingest/9b4fa94a-b436-42f4-8a45-dbb7a509d7d4", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "09a427",
-    },
-    body: JSON.stringify({
-      sessionId: "09a427",
-      runId: "post-fix",
-      hypothesisId: "H4",
-      location: "VolunteerCategories.jsx:render",
-      message: "VolunteerCategories card is mounted",
-      data: { mounted: true, canLoad },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   const [selected, setSelected] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(canLoad);
+  const [loaded, setLoaded] = useState(!canLoad);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -35,19 +17,14 @@ export default function VolunteerCategories({ onLoggedOut, canLoad = true }) {
   useEffect(() => {
     let cancelled = false;
     if (!canLoad) {
-      setLoaded(true);
-      setLoading(false);
       return () => {
         cancelled = true;
       };
     }
-    setLoading(true);
     getMyCategories()
       .then((data) => {
         if (cancelled) return;
-        setSelected((current) =>
-          current.length > 0 ? current : data.categories || [],
-        );
+        setSelected(data.categories || []);
         setLoaded(true);
         setLoading(false);
       })
@@ -170,7 +147,7 @@ export default function VolunteerCategories({ onLoggedOut, canLoad = true }) {
           ))}
         </fieldset>
         {error ? <p className="error">{error}</p> : null}
-        <button type="submit" disabled={saving || !canLoad}>
+        <button type="submit" disabled={saving || !canLoad || loading || !loaded}>
           {saving ? "Saving..." : "Save categories"}
         </button>
       </form>

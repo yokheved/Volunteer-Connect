@@ -250,11 +250,47 @@ Requires the VOLUNTEER role.
 
 # Volunteer Availability
 
+`day_of_week` is one of:
+
+```text
+SUNDAY
+MONDAY
+TUESDAY
+WEDNESDAY
+THURSDAY
+FRIDAY
+SATURDAY
+```
+
+The week starts on Sunday. GET and PUT return windows ordered Sunday through Saturday, then by `start_time`. The database `id` is not returned.
+
+Times use `HH:MM` on a 24-hour clock, such as `09:00` and `13:00`. `end_time` must be later than `start_time` on the same day.
+
+`PUT` replaces the volunteer's entire set. An empty `availability` array is valid and clears the selection. Windows on the same day must not overlap; an overlap or an exact duplicate returns `400` and leaves the previous rows unchanged. A window that ends at the same minute the next one starts, such as `09:00–13:00` and `13:00–16:00`, does not overlap and is allowed. Windows on different days do not overlap.
+
+Both endpoints require `Authorization: Bearer <access_token>` and the VOLUNTEER role. The volunteer id comes from the JWT. A missing, invalid, expired, or revoked token returns `401`. A user without the VOLUNTEER role receives `403`. Current password is not required.
+
+Both GET and PUT return:
+
+```json
+{
+  "availability": [
+    {
+      "day_of_week": "MONDAY",
+      "start_time": "09:00",
+      "end_time": "13:00"
+    }
+  ]
+}
+```
+
 ## Get Availability
 
 ```http
 GET /api/volunteers/me/availability
 ```
+
+Returns the current volunteer's recurring availability windows.
 
 ---
 
@@ -590,6 +626,10 @@ PUT /volunteers/me/categories
         ↓
 UpdateVolunteerCategories
 
+PUT /volunteers/me/availability
+        ↓
+UpdateVolunteerAvailability
+
 POST /requests
         ↓
 CreateVolunteerRequestCommand
@@ -607,6 +647,10 @@ Examples:
 GET /volunteers/me/categories
         ↓
 GetVolunteerCategories
+
+GET /volunteers/me/availability
+        ↓
+GetVolunteerAvailability
 
 GET /volunteers
         ↓
