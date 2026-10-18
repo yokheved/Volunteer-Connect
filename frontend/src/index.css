@@ -74,6 +74,7 @@ input[type="email"],
 input[type="password"],
 input[type="number"],
 input[type="time"],
+input[type="date"],
 select,
 textarea,
 input:not([type]) {
@@ -159,6 +160,31 @@ fieldset {
   .availability-row {
     grid-template-columns: 1fr 1fr 1fr auto;
   }
+}
+
+.search-results {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.search-result {
+  border: 1px solid #d9d3c7;
+  border-radius: 8px;
+  padding: 0.9rem;
+}
+
+.search-result h2 {
+  margin-bottom: 0.35rem;
+}
+
+.search-result p {
+  margin: 0.35rem 0;
+}
+
+.availability-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
 }
 
 button {

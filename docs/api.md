@@ -331,7 +331,7 @@ Requires the VOLUNTEER role.
 GET /api/volunteers
 ```
 
-Possible query parameters:
+Optional query parameters:
 
 ```text
 category
@@ -346,9 +346,44 @@ Example:
 GET /api/volunteers?category=Shopping&date=2026-10-15&start_time=10:00
 ```
 
+All four filters may be omitted. An empty search returns every volunteer. Present filters are combined with AND.
+
+- `category` must be one of the eight allowed category strings. Any other value returns `400`. A volunteer matches when that category is one of their saved categories.
+- `date` is `YYYY-MM-DD`. It selects the weekday, with Sunday as the first stored day name (`SUNDAY` through `SATURDAY`). `start_time` is `HH:MM`. Sending one without the other returns `400`. A volunteer matches when one saved window on that weekday satisfies `window start <= start_time < window end`. Monday `10:00` matches `09:00–13:00` and does not match `14:00–18:00`. Monday `13:00` matches `13:00–16:00` and does not match `09:00–13:00`.
+- `location` is matched against the volunteer's stored formatted address, case-insensitive. `jerusalem` matches an address that contains `Jerusalem`. A blank location is ignored. This endpoint does not call Google and does not use coordinates.
+
+Only users with the VOLUNTEER role are candidates. Results are ordered by name, then id. Email, phone, password, Google Place ID, latitude, and longitude are not returned.
+
+Example response:
+
+```json
+{
+  "volunteers": [
+    {
+      "id": 12,
+      "name": "Example Volunteer",
+      "address": "1 Kikar Safra, Jerusalem, Israel",
+      "categories": ["Shopping"],
+      "about_me": "I enjoy assisting elderly people.",
+      "availability": [
+        {
+          "day_of_week": "MONDAY",
+          "start_time": "09:00",
+          "end_time": "13:00"
+        }
+      ]
+    }
+  ]
+}
+```
+
+An empty `volunteers` array is `200`, not `404`.
+
+A missing, invalid, expired, or revoked token returns `401`. A user without the CLIENT role receives `403`.
+
 The initial search uses structured application data.
 
-AI matching may further evaluate suitable candidates.
+AI matching may further evaluate suitable candidates later. This endpoint does not run AI matching.
 
 Requires the CLIENT role.
 
@@ -654,7 +689,7 @@ GetVolunteerAvailability
 
 GET /volunteers
         ↓
-SearchVolunteersQuery
+SearchVolunteers
 
 GET /dashboard/volunteer
         ↓

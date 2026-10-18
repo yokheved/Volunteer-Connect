@@ -5,8 +5,25 @@ from app.commands.update_volunteer_availability import UpdateVolunteerAvailabili
 from app.commands.update_volunteer_categories import UpdateVolunteerCategories
 from app.queries.get_volunteer_availability import GetVolunteerAvailability
 from app.queries.get_volunteer_categories import GetVolunteerCategories
+from app.queries.search_volunteers import SearchVolunteers
 
 volunteers_bp = Blueprint("volunteers", __name__, url_prefix="/api/volunteers")
+
+
+@volunteers_bp.route("", methods=["GET"], strict_slashes=False)
+@jwt_required()
+def search_volunteers():
+    return jsonify(
+        SearchVolunteers().execute(
+            int(get_jwt_identity()),
+            {
+                "category": request.args.get("category"),
+                "date": request.args.get("date"),
+                "start_time": request.args.get("start_time"),
+                "location": request.args.get("location"),
+            },
+        )
+    ), 200
 
 
 @volunteers_bp.get("/me/categories")

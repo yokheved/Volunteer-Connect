@@ -1,0 +1,136 @@
+import re
+from datetime import datetime
+
+from app.commands.update_volunteer_availability import TIME_PATTERN
+from app.commands.update_volunteer_categories import ALLOWED_CATEGORIES
+from app.errors import ForbiddenError, NotFoundError, ValidationError
+from app.persistence.availability_repository import AvailabilityRepository
+from app.persistence.category_repository import CategoryRepository
+from app.persistence.user_repository import UserRepository
+
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+WEEKDAY_NAMES = (
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+    "SUNDAY",
+)
+
+
+class SearchVolunteers:
+    def __init__(
+        self,
+        users: UserRepository | None = None,
+        categories: CategoryRepository | None = None,
+        availability: AvailabilityRepository | None = None,
+    ):
+        self.users = users or UserRepository()
+        self.categories = categories or CategoryRepository()
+        self.availability = availability or AvailabilityRepository()
+
+    def execute(self, user_id: int, filters: dict) -> dict:
+        user = self.users.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError("User not found")
+        if "CLIENT" not in user.roles():
+            raise ForbiddenError("Client role is required")
+
+        parsed = self._validate(filters or {})
+        volunteers = []
+        for candidate in self.users.list_volunteers():
+            categories = self.categories.list_for_volunteer(candidate.id)
+            windows = self.availability.list_for_volunteer(candidate.id)
+            if not self._matches(candidate, categories, windows, parsed):
+                continue
+            volunteers.append(
+                {
+                    "id": candidate.id,
+                    "name": candidate.name,
+                    "address": candidate.address,
+                    "categories": categories,
+                    "about_me": candidate.about_me,
+                    "availability": windows,
+                }
+            )
+        return {"volunteers": volunteers}
+
+    def _validate(self, filters: dict) -> dict:
+        category = _optional_text(filters.get("category"))
+        date_value = _optional_text(filters.get("date"))
+        start_time = _optional_text(filters.get("start_time"))
+        location = _optional_text(filters.get("location"))
+
+        if category is not None and category not in ALLOWED_CATEGORIES:
+            raise ValidationError(f"Unknown category: {category}")
+
+        if (date_value is None) != (start_time is None):
+            raise ValidationError("date and start_time must be sent together")
+
+        weekday = None
+        minutes = None
+        if date_value is not None:
+            weekday = _weekday_from_date(date_value)
+            minutes = _minutes_from_time(start_time)
+
+        return {
+            "category": category,
+            "weekday": weekday,
+            "minutes": minutes,
+            "location": location,
+        }
+
+    def _matches(self, candidate, categories, windows, parsed) -> bool:
+        if parsed["category"] is not None and parsed["category"] not in categories:
+            return False
+        if parsed["location"] is not None:
+            if parsed["location"].lower() not in (candidate.address or "").lower():
+                return False
+        if parsed["weekday"] is not None:
+            if not _matches_availability(
+                windows, parsed["weekday"], parsed["minutes"]
+            ):
+                return False
+        return True
+
+
+def _optional_text(value) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _weekday_from_date(value: str) -> str:
+    if not DATE_PATTERN.fullmatch(value):
+        raise ValidationError("date must be YYYY-MM-DD")
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d")
+    except ValueError as error:
+        raise ValidationError("date must be YYYY-MM-DD") from error
+    return WEEKDAY_NAMES[parsed.weekday()]
+
+
+def _minutes_from_time(value: str) -> int:
+    if not TIME_PATTERN.fullmatch(value):
+        raise ValidationError("start_time must be HH:MM on a 24-hour clock")
+    hour, minute = value.split(":")
+    return int(hour) * 60 + int(minute)
+
+
+def _matches_availability(windows: list[dict], weekday: str, minutes: int) -> bool:
+    for window in windows:
+        if window["day_of_week"] != weekday:
+            continue
+        start = _hhmm_to_minutes(window["start_time"])
+        end = _hhmm_to_minutes(window["end_time"])
+        if start <= minutes < end:
+            return True
+    return False
+
+
+def _hhmm_to_minutes(value: str) -> int:
+    hour, minute = value.split(":")
+    return int(hour) * 60 + int(minute)

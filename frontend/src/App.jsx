@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
 import RegisterPage from "./pages/RegisterPage";
+import SearchPage from "./pages/SearchPage";
 import { getStoredToken } from "./services/authService";
 
 function App() {
@@ -37,6 +38,18 @@ function App() {
     setView("login");
   }, []);
 
+  const showSearch = useCallback(() => {
+    setNotice("");
+    setNoticeIsError(false);
+    setView("search");
+  }, []);
+
+  const showProfile = useCallback(() => {
+    setNotice("");
+    setNoticeIsError(false);
+    setView("profile");
+  }, []);
+
   return (
     <main>
       <header>
@@ -51,7 +64,12 @@ function App() {
       {view === "login" ? (
         <LoginPage onLoggedIn={handleLoggedIn} onShowRegister={showRegister} />
       ) : null}
-      {view === "profile" ? <ProfilePage onLoggedOut={handleLoggedOut} /> : null}
+      {view === "profile" ? (
+        <ProfilePage onLoggedOut={handleLoggedOut} onShowSearch={showSearch} />
+      ) : null}
+      {view === "search" ? (
+        <SearchPage onLoggedOut={handleLoggedOut} onShowProfile={showProfile} />
+      ) : null}
     </main>
   );
 }

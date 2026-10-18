@@ -13,3 +13,12 @@ class UserRepository:
         return db.session.execute(
             db.select(User).where(User.email == email.lower())
         ).scalar_one_or_none()
+
+    def list_volunteers(self) -> list[User]:
+        return list(
+            db.session.execute(
+                db.select(User)
+                .where(User.is_volunteer.is_(True))
+                .order_by(User.name, User.id)
+            ).scalars()
+        )
