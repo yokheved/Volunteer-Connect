@@ -2,10 +2,12 @@ import { useCallback, useState } from "react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import PasswordField from "../components/PasswordField";
 import { registerUser } from "../services/authService";
+import { joinDisplayName } from "../utils/personName";
 
 export default function RegisterPage({ onRegistered, onShowLogin }) {
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirm_password: "",
@@ -56,6 +58,10 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
       setError("Password and confirmation must match.");
       return;
     }
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setError("Enter a first name and a last name.");
+      return;
+    }
     if (!form.google_place_id) {
       setError("Select an address from the Google suggestions.");
       return;
@@ -64,7 +70,7 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
     setSubmitting(true);
     try {
       await registerUser({
-        name: form.name,
+        name: joinDisplayName(form.firstName, form.lastName),
         email: form.email,
         password: form.password,
         confirm_password: form.confirm_password,
@@ -89,8 +95,24 @@ export default function RegisterPage({ onRegistered, onShowLogin }) {
       <p className="lede">Register as a client, a volunteer, or both.</p>
       <form onSubmit={handleSubmit}>
         <label>
-          Name
-          <input name="name" value={form.name} onChange={updateField} required />
+          First name
+          <input
+            name="firstName"
+            value={form.firstName}
+            onChange={updateField}
+            autoComplete="given-name"
+            required
+          />
+        </label>
+        <label>
+          Last name
+          <input
+            name="lastName"
+            value={form.lastName}
+            onChange={updateField}
+            autoComplete="family-name"
+            required
+          />
         </label>
         <label>
           Email

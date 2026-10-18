@@ -197,7 +197,9 @@ def test_category_location_and_combined_filters(client):
     assert combined.status_code == 200
     volunteers = combined.get_json()["volunteers"]
     assert [item["name"] for item in volunteers] == ["Ada Morning"]
-    assert volunteers[0]["address"] == FIXTURE_PLACE["address"]
+    assert volunteers[0]["address"] == "Jerusalem, Israel"
+    assert "Kikar" not in volunteers[0]["address"]
+    assert "1 " not in volunteers[0]["address"]
     assert volunteers[0]["categories"] == ["Shopping"]
     assert volunteers[0]["about_me"] == MORNING_ABOUT
     assert volunteers[0]["availability"] == [
@@ -210,6 +212,15 @@ def test_no_match_returns_empty_list(client):
     headers = _auth_header(client, CLIENT)
 
     response = _search(client, headers, category="Tutoring")
+    assert response.status_code == 200
+    assert response.get_json() == {"volunteers": []}
+
+
+def test_location_filter_does_not_match_street_text(client):
+    _seed_volunteers(client)
+    headers = _auth_header(client, CLIENT)
+
+    response = _search(client, headers, location="Kikar")
     assert response.status_code == 200
     assert response.get_json() == {"volunteers": []}
 
@@ -240,7 +251,9 @@ def test_search_response_omits_private_fields(client):
             assert field not in volunteer
         assert "id" in volunteer
         assert "name" in volunteer
-        assert "address" in volunteer
+        assert volunteer["address"] in {"Jerusalem, Israel", "Tel Aviv-Yafo, Israel"}
+        assert "Kikar" not in volunteer["address"]
+        assert "Rabin" not in volunteer["address"]
 
 
 def test_volunteer_only_user_receives_403(client):
@@ -361,3 +374,23 @@ def test_repeating_search_does_not_add_a_domain_event(client, app):
     assert first.status_code == 200
     assert second.status_code == 200
     assert _event_count(app) == before
+
+
+def test_list_volunteers_sql_uses_equals_on_sql_server():
+    from sqlalchemy.dialects import mssql
+
+    from app.models.user import User
+
+    statement = (
+        db.select(User)
+        .where(User.is_volunteer == True)  # noqa: E712
+        .order_by(User.name, User.id)
+    )
+    sql = str(
+        statement.compile(
+            dialect=mssql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+    assert " IS 1" not in sql
+    assert "is_volunteer = 1" in sql

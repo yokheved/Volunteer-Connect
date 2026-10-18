@@ -49,7 +49,7 @@ class SearchVolunteers:
                 {
                     "id": candidate.id,
                     "name": candidate.name,
-                    "address": candidate.address,
+                    "address": public_address(candidate.address),
                     "categories": categories,
                     "about_me": candidate.about_me,
                     "availability": windows,
@@ -86,7 +86,7 @@ class SearchVolunteers:
         if parsed["category"] is not None and parsed["category"] not in categories:
             return False
         if parsed["location"] is not None:
-            if parsed["location"].lower() not in (candidate.address or "").lower():
+            if parsed["location"].lower() not in public_address(candidate.address).lower():
                 return False
         if parsed["weekday"] is not None:
             if not _matches_availability(
@@ -94,6 +94,13 @@ class SearchVolunteers:
             ):
                 return False
         return True
+
+
+def public_address(address: str | None) -> str:
+    parts = [part.strip() for part in (address or "").split(",") if part.strip()]
+    if len(parts) >= 2:
+        return ", ".join(parts[-2:])
+    return parts[0] if parts else ""
 
 
 def _optional_text(value) -> str | None:

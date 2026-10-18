@@ -350,9 +350,9 @@ All four filters may be omitted. An empty search returns every volunteer. Presen
 
 - `category` must be one of the eight allowed category strings. Any other value returns `400`. A volunteer matches when that category is one of their saved categories.
 - `date` is `YYYY-MM-DD`. It selects the weekday, with Sunday as the first stored day name (`SUNDAY` through `SATURDAY`). `start_time` is `HH:MM`. Sending one without the other returns `400`. A volunteer matches when one saved window on that weekday satisfies `window start <= start_time < window end`. Monday `10:00` matches `09:00–13:00` and does not match `14:00–18:00`. Monday `13:00` matches `13:00–16:00` and does not match `09:00–13:00`.
-- `location` is matched against the volunteer's stored formatted address, case-insensitive. `jerusalem` matches an address that contains `Jerusalem`. A blank location is ignored. This endpoint does not call Google and does not use coordinates.
+- `location` is matched against the volunteer's city and country, case-insensitive. `jerusalem` matches `Jerusalem, Israel`. A blank location is ignored. Street and building number are not used for matching. This endpoint does not call Google and does not use coordinates.
 
-Only users with the VOLUNTEER role are candidates. Results are ordered by name, then id. Email, phone, password, Google Place ID, latitude, and longitude are not returned.
+Only users with the VOLUNTEER role are candidates. Results are ordered by name, then id. The `address` field is city and country only. Email, phone, password, street, building number, Google Place ID, latitude, and longitude are not returned.
 
 Example response:
 
@@ -362,7 +362,7 @@ Example response:
     {
       "id": 12,
       "name": "Example Volunteer",
-      "address": "1 Kikar Safra, Jerusalem, Israel",
+      "address": "Jerusalem, Israel",
       "categories": ["Shopping"],
       "about_me": "I enjoy assisting elderly people.",
       "availability": [

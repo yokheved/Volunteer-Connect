@@ -10,14 +10,17 @@ import {
   setStoredToken,
   updateCurrentUser,
 } from "../services/authService";
+import { joinDisplayName, splitDisplayName } from "../utils/personName";
 
 function isTokenError(message) {
   return !/current password/i.test(message || "");
 }
 
 function profileToForm(profile) {
+  const { firstName, lastName } = splitDisplayName(profile.name);
   return {
-    name: profile.name || "",
+    firstName,
+    lastName,
     phone: profile.phone || "",
     address: profile.address || "",
     google_place_id: profile.google_place_id || "",
@@ -44,7 +47,8 @@ function roleLabels(roles) {
 export default function ProfilePage({ onLoggedOut, onShowSearch }) {
   const [user, setUser] = useState(null);
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     phone: "",
     address: "",
     google_place_id: "",
@@ -163,6 +167,10 @@ export default function ProfilePage({ onLoggedOut, onShowSearch }) {
       setError("Select at least one role.");
       return;
     }
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setError("Enter a first name and a last name.");
+      return;
+    }
     if (!form.google_place_id) {
       setError("Select an address from the Google suggestions.");
       return;
@@ -180,7 +188,7 @@ export default function ProfilePage({ onLoggedOut, onShowSearch }) {
 
     const payload = {
       current_password: form.current_password,
-      name: form.name,
+      name: joinDisplayName(form.firstName, form.lastName),
       phone: form.phone,
       roles,
       address: form.address,
@@ -311,8 +319,24 @@ export default function ProfilePage({ onLoggedOut, onShowSearch }) {
             <input value={user.email} readOnly />
           </label>
           <label>
-            Name
-            <input name="name" value={form.name} onChange={updateField} required />
+            First name
+            <input
+              name="firstName"
+              value={form.firstName}
+              onChange={updateField}
+              autoComplete="given-name"
+              required
+            />
+          </label>
+          <label>
+            Last name
+            <input
+              name="lastName"
+              value={form.lastName}
+              onChange={updateField}
+              autoComplete="family-name"
+              required
+            />
           </label>
           <label>
             Phone

@@ -224,12 +224,13 @@ Clients can view relevant volunteer information before sending a request.
 Information may include:
 
 - Name
+- City and country
 - Volunteering categories
 - Availability
 - About Me
 - Relevant AI matching information
 
-Sensitive account information is not exposed.
+Street, building number, and other sensitive account information are not exposed.
 
 ---
 

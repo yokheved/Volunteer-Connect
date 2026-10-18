@@ -18,7 +18,7 @@ class UserRepository:
         return list(
             db.session.execute(
                 db.select(User)
-                .where(User.is_volunteer.is_(True))
+                .where(User.is_volunteer == True)  # SQL Server rejects "IS 1"
                 .order_by(User.name, User.id)
             ).scalars()
         )
