@@ -118,14 +118,28 @@ export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
     return (
       <section className="card">
         <h1>Request sent</h1>
-        <p className="lede">
-          Request {created.id} is {created.status}.
-        </p>
+        <p className="lede">Request {created.id} is {created.status}.</p>
         <dl className="profile">
+          <dt>Request id</dt>
+          <dd>{created.id}</dd>
+          <dt>Status</dt>
+          <dd>{created.status}</dd>
           <dt>Volunteer</dt>
           <dd>{volunteer.name}</dd>
+          <dt>Category</dt>
+          <dd>{created.category}</dd>
+          <dt>Date</dt>
+          <dd>{created.date}</dd>
+          <dt>Start time</dt>
+          <dd>{created.start_time}</dd>
+          <dt>Duration</dt>
+          <dd>
+            {created.duration} {created.duration === 1 ? "hour" : "hours"}
+          </dd>
           <dt>Location</dt>
           <dd>{created.location}</dd>
+          <dt>Description</dt>
+          <dd>{created.description}</dd>
         </dl>
         <div className="button-row">
           <button type="button" onClick={onShowSearch}>
