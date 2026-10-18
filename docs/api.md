@@ -428,6 +428,16 @@ POST /api/requests
 
 Requires the CLIENT role.
 
+The body contains `volunteer_id`, `category`, `date` (`YYYY-MM-DD`), `start_time` (`HH:MM`), `duration` (a whole number of hours, at least 1), and `description` (1–2000 characters).
+
+The task location is copied from the authenticated client's saved Google place: `location` (formatted address), `google_place_id`, `latitude`, `longitude`, and `location_cached_at`. Those fields must not be sent in the body. No new Google request is made. If the client has no saved place id or coordinates, the command returns `400`.
+
+`client_id` comes from the JWT. The body must not include `client_id` or `status`. Sending a request to the caller's own user id returns `400`. `volunteer_id` must be an existing user with the VOLUNTEER role; an unknown id or a non-volunteer returns `404`. `category` must be one of the eight allowed categories and one of that volunteer's saved categories.
+
+The requested `date` and `start_time` are checked against the volunteer's saved availability, using the same weekday rule as search. Sunday is the first stored day name. A volunteer matches when one saved window on that weekday satisfies `window start <= start_time < window end`. Thursday `10:00` matches `09:00–13:00` and does not match `14:00–18:00`. Thursday `13:00` does not match `09:00–13:00`. If no window matches, the command returns `400` and writes no request and no event.
+
+The request screen lists that volunteer's saved windows and the client chooses one. The body `start_time` is that window's start. The body `date` must fall on that window's weekday.
+
 Example request:
 
 ```json
@@ -437,20 +447,41 @@ Example request:
   "date": "2026-10-15",
   "start_time": "10:00",
   "duration": 2,
-  "location": "Jerusalem",
   "description": "Help with grocery shopping."
 }
 ```
-
-The backend determines `client_id` from the authenticated user.
-
-The client must not provide another user's `client_id`.
 
 New requests are created with:
 
 ```text
 PENDING
 ```
+
+A successful response is `201`:
+
+```json
+{
+  "id": 1,
+  "client_id": 4,
+  "volunteer_id": 12,
+  "category": "Shopping",
+  "date": "2026-10-15",
+  "start_time": "10:00",
+  "duration": 2,
+  "location": "1 Kikar Safra, Jerusalem, Israel",
+  "google_place_id": "ChIJi8mnMiQGhk8R0qK2G1jW7Zc",
+  "latitude": 31.7788,
+  "longitude": 35.2254,
+  "location_cached_at": "2026-10-18T07:31:00",
+  "description": "Help with grocery shopping.",
+  "status": "PENDING",
+  "created_at": "2026-10-18T07:31:01"
+}
+```
+
+Email, phone, and password are not returned.
+
+A missing, invalid, expired, or revoked token returns `401`. A user without the CLIENT role receives `403`. Validation failures return `400` and write no request and no event.
 
 ---
 

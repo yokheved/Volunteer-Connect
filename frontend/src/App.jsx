@@ -2,11 +2,13 @@ import { useCallback, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
 import RegisterPage from "./pages/RegisterPage";
+import RequestPage from "./pages/RequestPage";
 import SearchPage from "./pages/SearchPage";
 import { getStoredToken } from "./services/authService";
 
 function App() {
   const [view, setView] = useState(getStoredToken() ? "profile" : "login");
+  const [selectedVolunteer, setSelectedVolunteer] = useState(null);
   const [notice, setNotice] = useState("");
   const [noticeIsError, setNoticeIsError] = useState(false);
 
@@ -44,6 +46,13 @@ function App() {
     setView("search");
   }, []);
 
+  const showRequest = useCallback((volunteer) => {
+    setSelectedVolunteer(volunteer);
+    setNotice("");
+    setNoticeIsError(false);
+    setView("request");
+  }, []);
+
   const showProfile = useCallback(() => {
     setNotice("");
     setNoticeIsError(false);
@@ -68,7 +77,18 @@ function App() {
         <ProfilePage onLoggedOut={handleLoggedOut} onShowSearch={showSearch} />
       ) : null}
       {view === "search" ? (
-        <SearchPage onLoggedOut={handleLoggedOut} onShowProfile={showProfile} />
+        <SearchPage
+          onLoggedOut={handleLoggedOut}
+          onShowProfile={showProfile}
+          onRequestVolunteer={showRequest}
+        />
+      ) : null}
+      {view === "request" && selectedVolunteer ? (
+        <RequestPage
+          volunteer={selectedVolunteer}
+          onLoggedOut={handleLoggedOut}
+          onShowSearch={showSearch}
+        />
       ) : null}
     </main>
   );

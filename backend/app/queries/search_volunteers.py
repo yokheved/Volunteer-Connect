@@ -7,17 +7,9 @@ from app.errors import ForbiddenError, NotFoundError, ValidationError
 from app.persistence.availability_repository import AvailabilityRepository
 from app.persistence.category_repository import CategoryRepository
 from app.persistence.user_repository import UserRepository
+from app.services.availability_match import matches_availability, weekday_name
 
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-WEEKDAY_NAMES = (
-    "MONDAY",
-    "TUESDAY",
-    "WEDNESDAY",
-    "THURSDAY",
-    "FRIDAY",
-    "SATURDAY",
-    "SUNDAY",
-)
 
 
 class SearchVolunteers:
@@ -89,7 +81,7 @@ class SearchVolunteers:
             if parsed["location"].lower() not in public_address(candidate.address).lower():
                 return False
         if parsed["weekday"] is not None:
-            if not _matches_availability(
+            if not matches_availability(
                 windows, parsed["weekday"], parsed["minutes"]
             ):
                 return False
@@ -117,7 +109,7 @@ def _weekday_from_date(value: str) -> str:
         parsed = datetime.strptime(value, "%Y-%m-%d")
     except ValueError as error:
         raise ValidationError("date must be YYYY-MM-DD") from error
-    return WEEKDAY_NAMES[parsed.weekday()]
+    return weekday_name(parsed.date())
 
 
 def _minutes_from_time(value: str) -> int:
@@ -127,17 +119,3 @@ def _minutes_from_time(value: str) -> int:
     return int(hour) * 60 + int(minute)
 
 
-def _matches_availability(windows: list[dict], weekday: str, minutes: int) -> bool:
-    for window in windows:
-        if window["day_of_week"] != weekday:
-            continue
-        start = _hhmm_to_minutes(window["start_time"])
-        end = _hhmm_to_minutes(window["end_time"])
-        if start <= minutes < end:
-            return True
-    return False
-
-
-def _hhmm_to_minutes(value: str) -> int:
-    hour, minute = value.split(":")
-    return int(hour) * 60 + int(minute)

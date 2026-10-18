@@ -13,7 +13,7 @@ const DAY_LABELS = {
   SATURDAY: "Saturday",
 };
 
-export default function SearchPage({ onLoggedOut, onShowProfile }) {
+export default function SearchPage({ onLoggedOut, onShowProfile, onRequestVolunteer }) {
   const [filters, setFilters] = useState({
     category: "",
     date: "",
@@ -138,6 +138,14 @@ export default function SearchPage({ onLoggedOut, onShowProfile }) {
                     ))
                   )}
                 </ul>
+                <div className="button-row">
+                  <button
+                    type="button"
+                    onClick={() => onRequestVolunteer(volunteer)}
+                  >
+                    Request
+                  </button>
+                </div>
               </article>
             ))
           )}

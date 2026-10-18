@@ -250,6 +250,8 @@ Duration
 Description
 ```
 
+Start time is chosen from the volunteer's saved availability windows. The selected date must fall on that window's weekday.
+
 A new request starts with:
 
 ```text

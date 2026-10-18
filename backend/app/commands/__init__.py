@@ -1,3 +1,4 @@
+from app.commands.create_volunteer_request import CreateVolunteerRequest
 from app.commands.register_user import RegisterUser
 from app.commands.update_user_profile import UpdateUserProfile
 from app.commands.update_volunteer_availability import UpdateVolunteerAvailability
@@ -8,4 +9,5 @@ __all__ = [
     "UpdateUserProfile",
     "UpdateVolunteerCategories",
     "UpdateVolunteerAvailability",
+    "CreateVolunteerRequest",
 ]

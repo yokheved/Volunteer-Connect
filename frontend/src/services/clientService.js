@@ -1,5 +1,9 @@
 import { apiRequest } from "./api";
 
+export function createVolunteerRequest(payload) {
+  return apiRequest("/api/requests", { method: "POST", body: payload });
+}
+
 export function searchVolunteers(filters) {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {

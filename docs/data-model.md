@@ -180,6 +180,10 @@ date
 start_time
 duration
 location
+google_place_id
+latitude
+longitude
+location_cached_at
 description
 status
 created_at
@@ -196,7 +200,11 @@ created_at
 | date | Requested date |
 | start_time | Starting time |
 | duration | Expected duration |
-| location | Task location |
+| location | Task location (the client's formatted address at creation time) |
+| google_place_id | Copied from the client at creation time |
+| latitude | Copied from the client at creation time |
+| longitude | Copied from the client at creation time |
+| location_cached_at | Copied from the client at creation time; this copy does not start a new 30-day cache |
 | description | Free-text task description |
 | status | Current request state |
 | created_at | Request creation timestamp |
@@ -206,6 +214,8 @@ created_at
 ```text
 users.id
 ```
+
+`location`, `google_place_id`, `latitude`, `longitude`, and `location_cached_at` are copied from the client when the request is created. They are not typed in the request body and are not selected again through Google Places.
 
 ---
 
