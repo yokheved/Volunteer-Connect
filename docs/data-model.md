@@ -79,7 +79,7 @@ created_at
 - The location information is shared across all roles of the same User.
 - Location changes should be reflected in the system's Event Sourcing mechanism.
 
-**Google Maps data policy:** Place IDs may be stored permanently. `address` is the formatted address the user confirmed for that account; it is not a shared geocoding cache. `latitude` and `longitude` are stored with `location_cached_at`. Google's current Places terms allow coordinates to be cached for 30 consecutive calendar days, after which they must be deleted. A later distance feature must treat coordinates older than 30 days as expired and refresh them with Place Details using the stored Place ID. This profile feature only records the timestamp; it does not refresh coordinates or implement `check_location_distance`. Do not draw these coordinates on a non-Google map. Showing the formatted address as text is allowed.
+**Google Maps data policy:** Place IDs may be stored permanently. `address` is the formatted address the user confirmed for that account; it is not a shared geocoding cache. `latitude` and `longitude` are stored with `location_cached_at`. Google's current Places terms allow coordinates to be cached for 30 consecutive calendar days, after which they must be deleted. A later matching step may send the stored Place ID to Google Maps Grounding Lite, which the Deep Agent calls. This profile feature only records the timestamp; it does not refresh coordinates or call that MCP service. Do not draw these coordinates on a non-Google map. Showing the formatted address as text is allowed.
 
 ---
 
@@ -358,6 +358,10 @@ created_at
 | created_at | Matching timestamp |
 
 This table is optional until the AI matching implementation is built, but some persistent representation of the matching report will be required because the report is displayed in the UI.
+
+The agent stores at most six rows for one request, highest `match_score` first. The API returns that ranked list. Showing only the first three until the client chooses **Show More** is a frontend choice and does not need another column.
+
+Travel times used by `check_volunteer_schedule` are inputs the agent passes at runtime. They are not a column on this table. The written `report` can explain the travel and schedule result. A separate column for the numeric travel time would be a later data-model change.
 
 ---
 

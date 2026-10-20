@@ -32,6 +32,12 @@ Status:
 - REJECTED
 - COMPLETED
 
+## AI matching
+- A background Deep Agent ranks eligible volunteers and stores at most six matches, highest score first.
+- The agent uses RAG, `get_volunteer_history`, `check_volunteer_schedule`, Google Maps Grounding Lite, and Tavily when needed.
+- The agent does not approve or reject requests and does not send email.
+- The client UI shows the first three stored matches, then **Show More** for any remaining matches.
+
 ## Non-functional
 - The backend writes request, application, and error logs to rotating files.
 - Passwords and tokens are not written to those logs.

@@ -254,10 +254,10 @@ A matching test can verify that the agent:
 2. Uses structured candidate filtering.
 3. Retrieves semantic context through RAG.
 4. Evaluates candidate information.
-5. Uses location information when required.
-6. Produces a matching result.
+5. Calls `get_volunteer_history` and, when travel time is required, Google Maps Grounding Lite and then `check_volunteer_schedule`.
+6. Produces at most six ranked matching results.
 7. Stores the matching report.
-8. Requests notification when an appropriate match is found.
+8. Does not approve the request and does not send email.
 
 AI-generated wording should not be tested using exact string equality.
 
@@ -267,25 +267,23 @@ Tests should focus on expected structure and workflow behavior.
 
 # MCP Tool Tests
 
-## check_location_distance
+## check_volunteer_schedule
 
-Tests should verify that the tool receives appropriate locations and returns information in the expected format.
+Tests should verify that the tool uses approved commitments and travel times passed in by the agent, and that it explains a conflict when one exists.
 
-External services may be mocked during automated tests.
+Google Maps is not called from this tool. Automated tests should pass travel times in directly.
 
 ---
 
-## send_match_notification
+## get_volunteer_history
 
-Tests should verify that:
+Tests should verify that completed tasks and participation statistics come from existing records.
 
-- Correct volunteer is targeted.
-- Correct volunteering information is supplied.
-- Notification is requested only when appropriate.
+---
 
-Automated tests should not send real emails every time the test suite runs.
+## Google Maps Grounding Lite and Tavily
 
-The external email operation should therefore be mocked or replaced with a test implementation.
+Automated tests should mock both external MCP services. Tests should not call Google or Tavily on every run.
 
 ---
 
@@ -330,6 +328,7 @@ Volunteer search
 Create volunteering request
 Approve/reject request
 Dashboard display
+Matching results, including Show More when more than three matches exist
 ```
 
 The exact frontend testing tools will be selected during implementation if required.
@@ -362,7 +361,7 @@ Example scenario:
    - request status = PENDING
    - agent can evaluate the match
    - matching result is stored
-   - notification process can be triggered
+   - no email is sent by the agent
 
 6. Volunteer A:
    - views pending request

@@ -169,15 +169,17 @@ The Deep Agent manages the matching workflow as follows:
 
 1. A client submits a new volunteering request through the application.
 2. Flask saves the request in the cloud-hosted database (Somee.com), using the existing Event Sourcing design.
-3. The system performs initial structured filtering, such as location and availability.
-4. The agent uses RAG and the vector database to retrieve potential volunteers based on semantic compatibility.
-5. The Deep Agent evaluates the candidates and may invoke `check_location_distance` to verify geographical compatibility.
-6. The agent uses Tavily through MCP when additional external information is relevant.
-7. The agent identifies the most suitable volunteer and produces a reasoned matching report.
-8. When an appropriate match is identified, the agent invokes `send_match_notification` to notify the volunteer by email.
-9. The matching results and report are saved back to the system and displayed in the UI.
+3. Structured filtering keeps candidates by category, general availability, and the other stored criteria.
+4. The agent uses RAG and the vector database to judge semantic relevance.
+5. The agent calls `get_volunteer_history` for completed work and related experience.
+6. The agent calls Google Maps Grounding Lite MCP for travel distance and estimated travel time.
+7. The agent passes those travel times to `check_volunteer_schedule`, which looks for conflicts with approved commitments.
+8. The agent uses Tavily through MCP when additional external information is relevant.
+9. The agent ranks eligible volunteers by semantic relevance, experience, geography, and schedule feasibility.
+10. The agent keeps at most six volunteers, highest match score first, and writes a reasoned report.
+11. The matching results and report are saved and shown in the UI. The screen lists the top three first. **Show More** reveals the rest only when more than three were saved.
 
-The volunteer still approves or rejects volunteering requests.
+The volunteer still approves or rejects volunteering requests. The agent does not send email.
 
 The matching process may consider:
 
@@ -192,7 +194,7 @@ The agent can combine information from:
 
 - The relational database
 - A vector database using RAG
-- External services through MCP, including Tavily for internet search
+- External services through MCP: Tavily for web search, and Google Maps Grounding Lite for travel time
 
 A possible result:
 
@@ -434,7 +436,7 @@ The same authenticated user can therefore access both client and volunteer funct
 
 External services can be accessed through **MCP (Model Context Protocol)**.
 
-Two custom MCP tools will be developed for the project: `send_match_notification` and `check_location_distance`. In addition, Tavily will be used through MCP as an external internet search tool. Tavily is not one of the two custom MCP tools.
+Two custom MCP tools will be developed for the project: `check_volunteer_schedule` and `get_volunteer_history`. Tavily and Google Maps Grounding Lite are external MCP services. They are not custom tools. Google Places Autocomplete in the web app is separate from these MCP tools.
 
 ### Development
 
@@ -447,18 +449,20 @@ Two custom MCP tools will be developed for the project: `send_match_notification
 
 ## 🔧 MCP Tools
 
-The project includes two custom MCP tools that allow the Deep Agent to perform external actions that complement RAG. Semantic matching remains the responsibility of the RAG layer, not of these tools.
+The project includes two custom MCP tools. Semantic matching stays in the RAG layer. Travel time comes from Google Maps Grounding Lite, which the agent calls itself.
 
 ```text
-send_match_notification(...)
-check_location_distance(...)
+check_volunteer_schedule(...)
+get_volunteer_history(...)
 ```
 
-`send_match_notification` sends an automatic email to a volunteer when the Deep Agent identifies a highly suitable match between the volunteer and a volunteering request. The agent performs the matching using RAG and then invokes this tool to send the email with the relevant volunteering details. An email integration such as Gmail MCP may be used. This tool is responsible for the external notification action, not for semantic matching.
+`check_volunteer_schedule` decides whether a volunteer can take the task without conflicting with approved commitments. It uses start times, durations, and travel times the agent supplies. Home location is used when there is no earlier task. Consecutive tasks include travel from the previous task and onward to the next approved task. The tool does not call Google Maps.
 
-`check_location_distance` checks the geographical distance or travel compatibility between a volunteer's location and the volunteering request's location. The agent invokes this tool when evaluating potential volunteers identified through the matching process. This complements RAG because semantic search cannot reliably calculate real geographical distances.
+`get_volunteer_history` returns completed tasks, categories, relevant experience, and participation statistics from existing records. The agent combines that history with RAG.
 
-In addition to these two custom MCP tools, the agent uses **Tavily** through MCP as an external internet search tool. Tavily is not one of the two MCP tools implemented by the project. The agent uses Tavily when external, up-to-date information is needed to enrich matching decisions, such as relevant guidelines, professional background, or environmental information.
+**Tavily** is an external web-search MCP service. The agent uses it when matching needs up-to-date outside information. It is not a custom tool.
+
+**Google Maps Grounding Lite** is Google's official MCP service at `https://mapstools.googleapis.com/mcp`. The agent calls `compute_routes` with stored Place IDs where a waypoint allows it. Results are distance and estimated duration, not live traffic. The API key is `GOOGLE_MAPS_MCP_API_KEY` on the Python agent. Google's current Essentials list includes 10,000 free Grounding Lite requests per month, then usage-based billing. Confirm the current price before a deployment that may exceed that cap.
 
 ---
 

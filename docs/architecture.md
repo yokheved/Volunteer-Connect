@@ -11,7 +11,7 @@ The application follows a client-server architecture:
 - **Relational Database:** Microsoft SQL Server hosted on Somee.com
 - **Vector Database:** separate vector storage for semantic search and RAG
 - **AI Matching:** background Deep Agent
-- **External Integrations:** MCP tools and Tavily
+- **External Integrations:** Tavily MCP and Google Maps Grounding Lite MCP
 
 The system is designed to remain simple enough for a small academic project while demonstrating the architectural concepts required by the course.
 
@@ -48,10 +48,11 @@ The system is designed to remain simple enough for a small academic project whil
                                   ▼
                               Deep Agent
                                   │
-                    ┌─────────────┼──────────────┐
-                    ▼             ▼              ▼
-          check_location_   send_match_        Tavily
-             distance       notification       MCP
+          ┌───────────────┬───────┴────────┬──────────────────┐
+          ▼               ▼                ▼                  ▼
+ get_volunteer_   check_volunteer_   Google Maps        Tavily
+    history          schedule        Grounding Lite       MCP
+                                     MCP
 ```
 
 ---
@@ -323,94 +324,81 @@ These texts may be considered similar even when they do not contain identical ke
 
 # Deep Agent
 
-The AI Volunteer Matching Agent runs as a separate background process.
-
-Its responsibility is to evaluate potential volunteers for new volunteering tasks.
+The AI Volunteer Matching Agent runs as a separate background process. It orchestrates matching. It does not approve or reject requests, and it does not send email.
 
 The process is:
 
-```text
-Client creates volunteering task
-            │
-            ▼
-Flask stores task
-            │
-            ▼
-Structured candidate filtering
-            │
-            ▼
-RAG retrieval
-            │
-            ▼
-Candidate evaluation
-            │
-            ▼
-check_location_distance
-            │
-            ▼
-Optional Tavily search
-            │
-            ▼
-Matching decision and report
-            │
-            ▼
-send_match_notification
-            │
-            ▼
-Result saved in system
-```
+1. A client creates a volunteering request through React and Flask.
+2. Flask persists the request with the existing command and Event Sourcing flow.
+3. Structured filtering keeps candidates that match category, general availability, and the other search criteria already stored by the application.
+4. The agent uses RAG and the vector database to judge semantic relevance.
+5. The agent calls `get_volunteer_history` for completed work, categories, and participation statistics.
+6. The agent calls Google Maps Grounding Lite MCP for the travel distances and estimated travel times it needs.
+7. The agent passes those travel times to `check_volunteer_schedule`, which checks conflicts with existing `APPROVED` commitments.
+8. The agent calls Tavily MCP only when it needs external, up-to-date information.
+9. The agent ranks eligible volunteers by semantic relevance, relevant experience, geographical suitability, and scheduling feasibility.
+10. The agent keeps at most six volunteers, highest match score first.
+11. The agent writes a reasoned report for those recommendations.
+12. The backend stores the results. The frontend reads them later. Matching is not done inside the HTTP request that created the volunteering request.
 
-The agent may evaluate:
-
-- Availability
-- Category compatibility
-- Geographic distance
-- Volunteer interests
-- Volunteer experience
-- Semantic similarity
-
-The agent produces a reasoned matching report.
-
-The agent does not approve volunteering requests on behalf of volunteers.
-
-The volunteer remains responsible for approving or rejecting a request.
+The volunteer still approves or rejects the request.
 
 ---
 
 # MCP
 
-The project includes two custom MCP tools.
+The project develops exactly two custom MCP tools. Two external MCP services are used as well. Google Places Autocomplete in the React app is separate: it selects and stores a Place ID for a user or request. It is not one of these tools.
 
-## `check_location_distance`
+## `check_volunteer_schedule`
 
-This tool evaluates geographical compatibility between:
+This custom tool decides whether a volunteer can do the requested task without a schedule conflict.
 
-- Volunteer location
-- Volunteering task location
+It looks at existing `APPROVED` commitments, including start times and durations. When the volunteer has no earlier task that matters, it uses the volunteer's home location. For back-to-back tasks, it considers travel from the previous task location to the requested task, and whether the volunteer can still reach the next approved task on time.
 
-It may return information such as distance or estimated travel suitability.
+Travel times are an input. The Deep Agent obtains them from Google Maps Grounding Lite and passes them in. This tool does not call Google Maps.
 
-This functionality is kept outside the RAG layer because vector similarity cannot accurately calculate geographical distance.
+It returns a structured result: whether the volunteer is available, and an explanation of any conflict.
 
-## `send_match_notification`
+The Flask backend still enforces request validation and status changes. This tool does not approve a request.
 
-This tool sends a notification when the agent identifies a suitable match.
+## `get_volunteer_history`
 
-The notification may be delivered through an external email service.
+This custom tool reads a volunteer's history from existing records:
 
-The tool performs the notification action only.
+- Completed tasks
+- Categories from that history
+- Relevant experience
+- Participation statistics derived from those records
 
-It does not determine whether the volunteer is a suitable match.
+The agent combines that structured history with RAG. The tool does not perform semantic search itself.
+
+## Google Maps Grounding Lite MCP
+
+This is Google's official MCP service, not a tool written for this project.
+
+- Endpoint: `https://mapstools.googleapis.com/mcp`
+- The Deep Agent calls it at runtime with `compute_routes`.
+- `compute_routes` accepts an origin and a destination. Each waypoint may be an address, latitude and longitude, or a Place ID. Official documentation confirms direct Place ID support. Stored Place IDs from profiles and requests can be used where a waypoint is required.
+- The agent chooses the routes: home to the task when there is no preceding task, previous task to the requested task, and the requested task to the next approved task when that next task exists.
+- The agent then passes the travel times to `check_volunteer_schedule`. The map service and the schedule tool stay separate.
+- `compute_routes` returns route distance and duration for driving or walking. Google's documentation states that Grounding Lite does not provide real-time traffic, turn-by-turn directions, or navigation. Do not treat the duration as a live-traffic or future-departure prediction.
+- The Python agent uses a Google Cloud API key from the environment variable `GOOGLE_MAPS_MCP_API_KEY`. The key is not a Cursor MCP connection. The Maps Grounding Lite API must be enabled on that Google Cloud project.
+- Google's current Essentials price list gives Maps Grounding Lite (SKU `8CD0-1602-5324`) 10,000 free requests per month, then usage-based billing. The first paid band is $7 per 10,000 requests. Pricing and terms can change; confirm them on Google's pricing page before relying on a bill.
+
+## Tavily MCP
+
+Tavily is an external web-search MCP service. The agent may call it when matching needs additional up-to-date information. It is not one of the two custom tools.
 
 ---
 
-# Tavily
+# Matching responsibilities
 
-Tavily is used through MCP as an external internet-search capability.
-
-It may be called by the Deep Agent when current external information is needed.
-
-Tavily is not one of the two MCP tools developed by the project team.
+- **Google Maps Grounding Lite MCP** supplies distance and travel time.
+- **Deep Agent** runs the workflow above, calls the external services, passes travel times into `check_volunteer_schedule`, ranks candidates, keeps at most six matches, and writes the explanations.
+- **`check_volunteer_schedule`** judges schedule feasibility from commitments plus the travel times it was given. It does not call Google.
+- **`get_volunteer_history`** returns structured history.
+- **Flask** stores requests and matching results, exposes the APIs, and enforces business rules and status transitions.
+- **React** shows the top three stored matches first. **Show More** reveals the rest, and only when more than three matches were stored. The client cannot see more than the six the agent saved. Fewer than six eligible volunteers means fewer rows, in the agent's order.
 
 ---
 
@@ -474,5 +462,5 @@ The project follows several principles:
 - Represent important state changes as events.
 - Perform structured filtering before AI matching.
 - Use RAG only where semantic matching is useful.
-- Use MCP for external capabilities.
+- Use the two custom MCP tools and the two external MCP services for matching.
 - Keep the project architecture understandable and suitable for the limited project scope.

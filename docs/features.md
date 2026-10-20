@@ -94,7 +94,7 @@ When a user registers or updates their address, the system must use Google Maps 
 - The selected location is associated with the user's profile.
 - The address field must be validated before saving.
 - If the user edits the address after selecting a suggestion, they must select a valid suggestion again.
-- The stored location information will support future volunteer matching and the `check_location_distance` MCP Tool.
+- The stored Place ID, formatted address, and coordinates support later travel-time checks. The Deep Agent sends those Place IDs to Google Maps Grounding Lite. Places Autocomplete remains the way a person selects an address.
 
 The integration should use Google Maps Platform and follow its API usage and data storage policies.
 
@@ -362,46 +362,43 @@ experience assisting elderly people with shopping and errands.
 
 The report is stored and can be displayed in the application.
 
----
+The agent saves at most six matches for a request, highest score first. If fewer volunteers are eligible, it saves only those. It does not approve or reject the request, and it does not send email.
 
-# Location Distance Tool
+## Matching results display
 
-The custom MCP tool:
+The client reviews stored matches for a request.
 
-```text
-check_location_distance
-```
-
-is used by the agent to evaluate geographical suitability.
-
-It compares:
-
-```text
-Volunteer location
-        │
-        ▼
-Volunteering task location
-```
-
-The result helps the agent determine whether the candidate is realistically located near the requested task.
+- The list follows the agent's order.
+- The screen shows the first three matches.
+- **Show More** reveals the other stored matches, at most three more.
+- **Show More** is shown only when more than three matches were stored.
+- Each row shows the match information the agent stored, including the score and the written explanation.
 
 ---
 
-# Match Notification Tool
+# Custom MCP Tools
 
-The custom MCP tool:
+The project develops exactly two custom MCP tools.
 
-```text
-send_match_notification
-```
+## `check_volunteer_schedule`
 
-is used when the agent identifies an appropriate volunteer match.
+The agent uses this tool to decide whether a volunteer can take the task without a scheduling conflict.
 
-The tool sends a notification or email containing relevant volunteering information.
+The tool checks `APPROVED` commitments, start times, durations, and travel times supplied by the agent. With no relevant earlier task, it uses the volunteer's home location. For consecutive tasks, it considers travel from the previous task to the requested task, and whether the volunteer can reach the next approved task on time.
 
-Receiving such a notification does not mean that the volunteering request has been approved.
+It does not call Google Maps. It returns whether the volunteer is available and explains any conflict.
 
-The volunteer still chooses whether to approve or reject the request.
+## `get_volunteer_history`
+
+The agent uses this tool for structured history: completed tasks, categories, relevant experience, and participation statistics from existing records. The agent combines that history with RAG.
+
+---
+
+# Google Maps Grounding Lite
+
+Google Maps Grounding Lite is an external MCP service. The Deep Agent calls `https://mapstools.googleapis.com/mcp` and uses `compute_routes` for distance and estimated travel time. Waypoints may be Place IDs already stored for the volunteer or the request. The agent passes the travel times to `check_volunteer_schedule`.
+
+The service does not provide real-time traffic or a prediction for a future departure time. It is not one of the two custom tools. The agent's API key stays in `GOOGLE_MAPS_MCP_API_KEY`.
 
 ---
 
