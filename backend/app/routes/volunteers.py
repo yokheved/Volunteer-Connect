@@ -20,7 +20,9 @@ def search_volunteers():
                 "category": request.args.get("category"),
                 "date": request.args.get("date"),
                 "start_time": request.args.get("start_time"),
-                "location": request.args.get("location"),
+                "latitude": request.args.get("latitude"),
+                "longitude": request.args.get("longitude"),
+                "radius_km": request.args.get("radius_km"),
             },
         )
     ), 200

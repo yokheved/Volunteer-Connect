@@ -190,6 +190,77 @@ def test_client_creates_pending_request_with_copied_location(client, app):
         assert payload["google_place_id"] == FIXTURE_PLACE["google_place_id"]
 
 
+def _place_body(place):
+    return {
+        "location": place["address"],
+        "google_place_id": place["google_place_id"],
+        "latitude": place["latitude"],
+        "longitude": place["longitude"],
+    }
+
+
+def test_client_can_choose_a_task_location_other_than_profile(client, app):
+    _setup_volunteer(client, VOLUNTEER, ["Shopping"])
+    volunteer_id = _user_id(app, VOLUNTEER["email"])
+    headers = _auth_header(client, CLIENT)
+
+    response = _create(
+        client, headers, _valid_body(volunteer_id, **_place_body(OTHER_PLACE))
+    )
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["location"] == OTHER_PLACE["address"]
+    assert body["google_place_id"] == OTHER_PLACE["google_place_id"]
+    assert body["latitude"] == OTHER_PLACE["latitude"]
+    assert body["longitude"] == OTHER_PLACE["longitude"]
+
+    with app.app_context():
+        stored = db.session.get(VolunteerRequest, body["id"])
+        assert stored.location == OTHER_PLACE["address"]
+        assert stored.google_place_id == OTHER_PLACE["google_place_id"]
+        payload = json.loads(_created_events(app, body["id"])[0].event_data)
+        assert payload["location"] == OTHER_PLACE["address"]
+
+
+def test_partial_or_invalid_task_location_receives_400(client, app):
+    _setup_volunteer(client, VOLUNTEER, ["Shopping"])
+    volunteer_id = _user_id(app, VOLUNTEER["email"])
+    headers = _auth_header(client, CLIENT)
+    full = _place_body(OTHER_PLACE)
+
+    invalid_bodies = [
+        _valid_body(volunteer_id, location=full["location"]),
+        _valid_body(volunteer_id, **{**full, "google_place_id": None}),
+        _valid_body(volunteer_id, **{**full, "latitude": 91}),
+        _valid_body(volunteer_id, **{**full, "location": "   "}),
+    ]
+    for body in invalid_bodies:
+        response = _create(client, headers, body)
+        assert response.status_code == 400, body
+    assert _request_count(app) == 0
+
+
+def test_chosen_location_works_without_saved_profile_place(client, app):
+    _setup_volunteer(client, VOLUNTEER, ["Shopping"])
+    volunteer_id = _user_id(app, VOLUNTEER["email"])
+    headers = _auth_header(client, CLIENT)
+    client_id = _user_id(app, CLIENT["email"])
+
+    with app.app_context():
+        stored = db.session.get(User, client_id)
+        stored.google_place_id = None
+        stored.latitude = None
+        stored.longitude = None
+        stored.location_cached_at = None
+        db.session.commit()
+
+    response = _create(
+        client, headers, _valid_body(volunteer_id, **_place_body(OTHER_PLACE))
+    )
+    assert response.status_code == 201
+    assert response.get_json()["location"] == OTHER_PLACE["address"]
+
+
 def test_both_roles_user_can_create_request_for_another_volunteer(client, app):
     _setup_volunteer(client, VOLUNTEER, ["Shopping"])
     volunteer_id = _user_id(app, VOLUNTEER["email"])

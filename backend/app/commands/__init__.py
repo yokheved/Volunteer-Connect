@@ -1,3 +1,8 @@
+from app.commands.change_request_status import (
+    ApproveVolunteerRequest,
+    RejectVolunteerRequest,
+)
+from app.commands.close_ended_requests import CloseEndedRequests
 from app.commands.create_volunteer_request import CreateVolunteerRequest
 from app.commands.register_user import RegisterUser
 from app.commands.update_user_profile import UpdateUserProfile
@@ -10,4 +15,7 @@ __all__ = [
     "UpdateVolunteerCategories",
     "UpdateVolunteerAvailability",
     "CreateVolunteerRequest",
+    "ApproveVolunteerRequest",
+    "RejectVolunteerRequest",
+    "CloseEndedRequests",
 ]

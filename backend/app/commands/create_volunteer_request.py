@@ -16,7 +16,7 @@ from app.commands.update_volunteer_availability import TIME_PATTERN
 from app.commands.update_volunteer_categories import ALLOWED_CATEGORIES
 from app.errors import ForbiddenError, NotFoundError, ValidationError
 from app.models.domain_event import DomainEvent
-from app.models.volunteer_request import PENDING, VolunteerRequest
+from app.models.volunteer_request import PENDING, VolunteerRequest, utc_now
 from app.persistence.availability_repository import AvailabilityRepository
 from app.persistence.category_repository import CategoryRepository
 from app.persistence.event_repository import EventRepository
@@ -39,13 +39,30 @@ class CreateVolunteerRequestSchema(Schema):
     start_time = fields.Str(required=True)
     duration = fields.Integer(required=True, validate=validate.Range(min=1))
     description = fields.Str(required=True, validate=validate.Length(min=1, max=2000))
+    # Optional task location picked from Google Places. All four fields are sent
+    # together, or none and the client's saved profile address is used.
+    location = fields.Str(load_default=None, validate=validate.Length(min=1, max=500))
+    google_place_id = fields.Str(
+        load_default=None, validate=validate.Length(min=1, max=255)
+    )
+    latitude = fields.Float(load_default=None, validate=validate.Range(min=-90, max=90))
+    longitude = fields.Float(
+        load_default=None, validate=validate.Range(min=-180, max=180)
+    )
 
     @pre_load
     def strip_text_fields(self, data, **_kwargs):
         if not isinstance(data, dict):
             return data
         stripped = dict(data)
-        for key in ("category", "date", "start_time", "description"):
+        for key in (
+            "category",
+            "date",
+            "start_time",
+            "description",
+            "location",
+            "google_place_id",
+        ):
             value = stripped.get(key)
             if isinstance(value, str):
                 stripped[key] = value.strip()
@@ -93,13 +110,29 @@ class CreateVolunteerRequest:
                 "The volunteer is not available at that date and start time"
             )
 
-        if (
-            not client.google_place_id
-            or client.latitude is None
-            or client.longitude is None
-            or client.location_cached_at is None
-        ):
-            raise ValidationError("Set your profile address before creating a request")
+        place = payload["place"]
+        if place is None:
+            if (
+                not client.google_place_id
+                or client.latitude is None
+                or client.longitude is None
+                or client.location_cached_at is None
+            ):
+                raise ValidationError(
+                    "Set your profile address or choose a task location"
+                )
+            place = {
+                "location": client.address,
+                "google_place_id": client.google_place_id,
+                "latitude": client.latitude,
+                "longitude": client.longitude,
+                "location_cached_at": client.location_cached_at,
+            }
+        elif place["google_place_id"] == client.google_place_id and client.location_cached_at:
+            # Same place as the profile: keep the profile's cache timestamp.
+            place["location_cached_at"] = client.location_cached_at
+        else:
+            place["location_cached_at"] = utc_now()
 
         request = VolunteerRequest(
             client_id=client.id,
@@ -108,11 +141,11 @@ class CreateVolunteerRequest:
             date=payload["date"],
             start_time=payload["start_time"],
             duration=payload["duration"],
-            location=client.address,
-            google_place_id=client.google_place_id,
-            latitude=client.latitude,
-            longitude=client.longitude,
-            location_cached_at=client.location_cached_at,
+            location=place["location"],
+            google_place_id=place["google_place_id"],
+            latitude=place["latitude"],
+            longitude=place["longitude"],
+            location_cached_at=place["location_cached_at"],
             description=payload["description"],
             status=PENDING,
         )
@@ -153,16 +186,20 @@ class CreateVolunteerRequest:
         raw = data if isinstance(data, dict) else {}
         if "client_id" in raw or "status" in raw:
             raise ValidationError("client_id and status cannot be sent in the request body")
-        for field in LOCATION_BODY_FIELDS:
-            if field in raw:
-                raise ValidationError(
-                    "location is copied from your saved profile and cannot be sent"
-                )
 
         try:
             payload = CreateVolunteerRequestSchema().load(raw)
         except MarshmallowValidationError as error:
             raise ValidationError(format_schema_errors(error.messages)) from error
+
+        sent = [field for field in LOCATION_BODY_FIELDS if payload[field] is not None]
+        if sent and len(sent) != len(LOCATION_BODY_FIELDS):
+            raise ValidationError(
+                "location, google_place_id, latitude and longitude must be sent together"
+            )
+        place = (
+            {field: payload[field] for field in LOCATION_BODY_FIELDS} if sent else None
+        )
 
         category = payload["category"]
         if category not in ALLOWED_CATEGORIES:
@@ -188,6 +225,7 @@ class CreateVolunteerRequest:
             "start_time": dt_time(int(hour), int(minute)),
             "duration": payload["duration"],
             "description": payload["description"],
+            "place": place,
         }
 
 

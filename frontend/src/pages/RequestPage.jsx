@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import { getCurrentUser, setStoredToken } from "../services/authService";
 import { createVolunteerRequest } from "../services/clientService";
 
@@ -34,26 +35,73 @@ function weekdayFromDate(value) {
   return WEEKDAY_NAMES[new Date(year, month - 1, day).getDay()];
 }
 
-export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
+// prefill is a rejected request; use its details where they fit this volunteer.
+function initialForm(volunteer, windows, prefill) {
+  const matchingWindow = prefill
+    ? windows.find(
+        (window) =>
+          window.day_of_week === weekdayFromDate(prefill.date) &&
+          window.start_time === prefill.start_time,
+      )
+    : null;
+  const firstWindow = matchingWindow || windows[0];
+  return {
+    category:
+      prefill && volunteer.categories.includes(prefill.category)
+        ? prefill.category
+        : volunteer.categories[0] || "",
+    date: prefill?.date || "",
+    windowKey: firstWindow ? windowKey(firstWindow) : "",
+    duration: prefill ? String(prefill.duration) : "1",
+    description: prefill?.description || "",
+  };
+}
+
+export default function RequestPage({
+  volunteer,
+  prefill,
+  onLoggedOut,
+  onShowSearch,
+  onShowRequests,
+}) {
   const windows = volunteer.availability || [];
   const hasWindows = windows.length > 0;
   const [client, setClient] = useState(null);
-  const [form, setForm] = useState({
-    category: volunteer.categories[0] || "",
-    date: "",
-    windowKey: hasWindows ? windowKey(windows[0]) : "",
-    duration: "1",
-    description: "",
-  });
+  const [form, setForm] = useState(() => initialForm(volunteer, windows, prefill));
+  const [locationText, setLocationText] = useState("");
+  const [place, setPlace] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState(null);
+
+  const handlePlaceSelected = useCallback((selected) => setPlace(selected), []);
+  const handlePlaceCleared = useCallback(() => setPlace(null), []);
 
   useEffect(() => {
     let cancelled = false;
     getCurrentUser()
       .then((profile) => {
-        if (!cancelled) setClient(profile);
+        if (cancelled) return;
+        // Default task location: the rejected request's place when searching
+        // again, otherwise the client's profile address. The client can change it.
+        const start = prefill?.google_place_id
+          ? {
+              address: prefill.location,
+              google_place_id: prefill.google_place_id,
+              latitude: prefill.latitude,
+              longitude: prefill.longitude,
+            }
+          : profile.google_place_id && profile.latitude != null && profile.longitude != null
+            ? {
+                address: profile.address,
+                google_place_id: profile.google_place_id,
+                latitude: profile.latitude,
+                longitude: profile.longitude,
+              }
+            : null;
+        setLocationText(start ? start.address : "");
+        setPlace(start);
+        setClient(profile);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -67,6 +115,8 @@ export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
     return () => {
       cancelled = true;
     };
+    // prefill is fixed for the life of this page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onLoggedOut]);
 
   function updateField(event) {
@@ -91,6 +141,10 @@ export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
       setError("The date must fall on the selected window’s weekday.");
       return;
     }
+    if (!place) {
+      setError("Choose the task location from the suggestions.");
+      return;
+    }
     setSubmitting(true);
     try {
       const request = await createVolunteerRequest({
@@ -100,6 +154,10 @@ export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
         start_time: selected.start_time,
         duration,
         description: form.description,
+        location: place.address,
+        google_place_id: place.google_place_id,
+        latitude: place.latitude,
+        longitude: place.longitude,
       });
       setCreated(request);
     } catch (err) {
@@ -145,6 +203,9 @@ export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
           <button type="button" onClick={onShowSearch}>
             Back to search
           </button>
+          <button type="button" onClick={onShowRequests}>
+            My requests
+          </button>
         </div>
       </section>
     );
@@ -161,15 +222,18 @@ export default function RequestPage({ volunteer, onLoggedOut, onShowSearch }) {
       {hasWindows ? null : (
         <p className="lede">This volunteer has no saved availability.</p>
       )}
-      {client ? (
-        <dl className="profile">
-          <dt>Task location</dt>
-          <dd>{client.address}</dd>
-        </dl>
-      ) : error ? null : (
-        <p className="lede">Loading your address...</p>
-      )}
+      {client || error ? null : <p className="lede">Loading your address...</p>}
       <form onSubmit={handleSubmit}>
+        {client ? (
+          <AddressAutocomplete
+            id="request-location"
+            label="Task location"
+            value={locationText}
+            onChange={setLocationText}
+            onPlaceSelected={handlePlaceSelected}
+            onPlaceCleared={handlePlaceCleared}
+          />
+        ) : null}
         <label>
           Category
           <select

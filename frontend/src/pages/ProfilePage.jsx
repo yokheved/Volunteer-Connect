@@ -44,7 +44,7 @@ function roleLabels(roles) {
   return labels.join(", ");
 }
 
-export default function ProfilePage({ onLoggedOut, onShowSearch }) {
+export default function ProfilePage({ onLoggedOut, onShowSearch, onShowRequests }) {
   const [user, setUser] = useState(null);
   const [form, setForm] = useState({
     firstName: "",
@@ -282,6 +282,9 @@ export default function ProfilePage({ onLoggedOut, onShowSearch }) {
                 Search volunteers
               </button>
             ) : null}
+            <button type="button" onClick={onShowRequests}>
+              My requests
+            </button>
             <button type="button" onClick={startEdit}>
               Edit profile
             </button>

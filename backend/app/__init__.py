@@ -64,9 +64,13 @@ def create_app(config_overrides: dict | None = None) -> Flask:
 
     with app.app_context():
         db.create_all()
-        from app.persistence.schema import ensure_user_location_columns
+        from app.persistence.schema import (
+            ensure_unicode_text_columns,
+            ensure_user_location_columns,
+        )
 
         ensure_user_location_columns()
+        ensure_unicode_text_columns()
 
     return app
 

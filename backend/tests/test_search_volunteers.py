@@ -53,6 +53,12 @@ BOTH_ROLES = {
     **FIXTURE_PLACE,
 }
 
+NEAR_JERUSALEM = {
+    "latitude": FIXTURE_PLACE["latitude"],
+    "longitude": FIXTURE_PLACE["longitude"],
+    "radius_km": "10",
+}
+
 MONDAY = "2026-10-12"
 SUNDAY = "2026-10-11"
 PRIVATE_FIELDS = (
@@ -180,7 +186,7 @@ def test_category_location_and_combined_filters(client):
         "Zoe Afternoon",
     ]
 
-    by_location = _search(client, headers, location="jerusalem")
+    by_location = _search(client, headers, **NEAR_JERUSALEM)
     assert by_location.status_code == 200
     assert [item["name"] for item in by_location.get_json()["volunteers"]] == [
         "Ada Morning"
@@ -192,7 +198,7 @@ def test_category_location_and_combined_filters(client):
         category="Shopping",
         date=MONDAY,
         start_time="10:00",
-        location="jerusalem",
+        **NEAR_JERUSALEM,
     )
     assert combined.status_code == 200
     volunteers = combined.get_json()["volunteers"]
@@ -216,13 +222,37 @@ def test_no_match_returns_empty_list(client):
     assert response.get_json() == {"volunteers": []}
 
 
-def test_location_filter_does_not_match_street_text(client):
+def test_location_radius_controls_which_volunteers_match(client):
+    _seed_volunteers(client)
+    headers = _auth_header(client, CLIENT)
+
+    # Jerusalem to Tel Aviv is about 54 km.
+    wide = _search(client, headers, **{**NEAR_JERUSALEM, "radius_km": "60"})
+    assert wide.status_code == 200
+    assert [item["name"] for item in wide.get_json()["volunteers"]] == [
+        "Ada Morning",
+        "Zoe Afternoon",
+    ]
+
+    default_radius = _search(
+        client,
+        headers,
+        latitude=OTHER_PLACE["latitude"],
+        longitude=OTHER_PLACE["longitude"],
+    )
+    assert default_radius.status_code == 200
+    assert [item["name"] for item in default_radius.get_json()["volunteers"]] == [
+        "Zoe Afternoon"
+    ]
+
+
+def test_old_text_location_param_is_ignored(client):
     _seed_volunteers(client)
     headers = _auth_header(client, CLIENT)
 
     response = _search(client, headers, location="Kikar")
     assert response.status_code == 200
-    assert response.get_json() == {"volunteers": []}
+    assert len(response.get_json()["volunteers"]) == 2
 
 
 def test_invalid_filters_return_400(client):
@@ -233,6 +263,13 @@ def test_invalid_filters_return_400(client):
         {"date": MONDAY, "start_time": "9:00"},
         {"date": MONDAY},
         {"start_time": "10:00"},
+        {"latitude": "31.7"},
+        {"longitude": "35.2"},
+        {"latitude": "abc", "longitude": "35.2"},
+        {"latitude": "91", "longitude": "35.2"},
+        {"latitude": "31.7", "longitude": "35.2", "radius_km": "0"},
+        {"latitude": "31.7", "longitude": "35.2", "radius_km": "500"},
+        {"radius_km": "10"},
     ]
     for params in cases:
         response = _search(client, headers, **params)
@@ -329,7 +366,7 @@ def test_sunday_date_matches_sunday_window(client):
     ]
 
 
-def test_user_with_both_roles_can_search_and_appear_in_results(client):
+def test_user_with_both_roles_does_not_see_themselves(client):
     both_auth = _setup_volunteer(
         client,
         BOTH_ROLES,
@@ -339,9 +376,7 @@ def test_user_with_both_roles_can_search_and_appear_in_results(client):
 
     as_searcher = _search(client, both_auth, category="Cooking")
     assert as_searcher.status_code == 200
-    assert [item["name"] for item in as_searcher.get_json()["volunteers"]] == [
-        "Maya Both"
-    ]
+    assert as_searcher.get_json() == {"volunteers": []}
 
     client_headers = _auth_header(client, CLIENT)
     from_client = _search(client, client_headers, category="Cooking")

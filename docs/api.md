@@ -337,7 +337,9 @@ Optional query parameters:
 category
 date
 start_time
-location
+latitude
+longitude
+radius_km
 ```
 
 Example:
@@ -346,13 +348,13 @@ Example:
 GET /api/volunteers?category=Shopping&date=2026-10-15&start_time=10:00
 ```
 
-All four filters may be omitted. An empty search returns every volunteer. Present filters are combined with AND.
+All filters may be omitted. An empty search returns every volunteer. Present filters are combined with AND.
 
 - `category` must be one of the eight allowed category strings. Any other value returns `400`. A volunteer matches when that category is one of their saved categories.
 - `date` is `YYYY-MM-DD`. It selects the weekday, with Sunday as the first stored day name (`SUNDAY` through `SATURDAY`). `start_time` is `HH:MM`. Sending one without the other returns `400`. A volunteer matches when one saved window on that weekday satisfies `window start <= start_time < window end`. Monday `10:00` matches `09:00–13:00` and does not match `14:00–18:00`. Monday `13:00` matches `13:00–16:00` and does not match `09:00–13:00`.
-- `location` is matched against the volunteer's city and country, case-insensitive. `jerusalem` matches `Jerusalem, Israel`. A blank location is ignored. Street and building number are not used for matching. This endpoint does not call Google and does not use coordinates.
+- `latitude` and `longitude` are the coordinates of a place the client picked from Google Places autocomplete in the UI. They must be sent together; otherwise `400`. `radius_km` is optional (default `10`, allowed `1`–`100`) and requires coordinates. A volunteer matches when the straight-line (haversine) distance from their saved coordinates is at most `radius_km`. Volunteers without saved coordinates do not match a location filter. This endpoint does not call Google.
 
-Only users with the VOLUNTEER role are candidates. Results are ordered by name, then id. The `address` field is city and country only. Email, phone, password, street, building number, Google Place ID, latitude, and longitude are not returned.
+Only users with the VOLUNTEER role are candidates. The caller is never returned, even when they are also a volunteer. Results are ordered by name, then id. The `address` field is city and country only. Email, phone, password, street, building number, Google Place ID, latitude, and longitude are not returned.
 
 Example response:
 
@@ -430,7 +432,9 @@ Requires the CLIENT role.
 
 The body contains `volunteer_id`, `category`, `date` (`YYYY-MM-DD`), `start_time` (`HH:MM`), `duration` (a whole number of hours, at least 1), and `description` (1–2000 characters).
 
-The task location is copied from the authenticated client's saved Google place: `location` (formatted address), `google_place_id`, `latitude`, `longitude`, and `location_cached_at`. Those fields must not be sent in the body. No new Google request is made. If the client has no saved place id or coordinates, the command returns `400`.
+The task location is optional in the body: `location` (formatted address), `google_place_id`, `latitude`, and `longitude`, from a place the client picked in Google Places autocomplete. The four fields are sent together; sending only some of them returns `400`. When they are sent, `location_cached_at` is set to now (or kept from the profile if the place id is the client's saved one). When they are omitted, all five fields are copied from the client's saved Google place; if the client has no saved place id or coordinates, the command returns `400`. The server makes no Google request.
+
+The request screen fills the task location with the client's profile address by default (or, when searching again from a rejected request, that request's location). The client can change it before sending.
 
 `client_id` comes from the JWT. The body must not include `client_id` or `status`. Sending a request to the caller's own user id returns `400`. `volunteer_id` must be an existing user with the VOLUNTEER role; an unknown id or a non-volunteer returns `404`. `category` must be one of the eight allowed categories and one of that volunteer's saved categories.
 
@@ -499,20 +503,42 @@ Returns request details when the authenticated user is authorized to view the re
 
 ```http
 GET /api/requests
-```
-
-Returns requests associated with the authenticated user.
-
-Possible filter:
-
-```text
-status
-```
-
-Example:
-
-```text
 GET /api/requests?status=PENDING
+```
+
+Returns the authenticated user's requests from both sides: the requests they sent as a client and the requests sent to them as a volunteer. Sorted by `date`, then `start_time`.
+
+`status` is optional and must be `PENDING`, `APPROVED`, `REJECTED`, or `COMPLETED` (any case). Another value returns `400`.
+
+Before answering, the server closes the user's requests whose time has passed (see [Automatic close](#automatic-close)), so the returned statuses are current.
+
+Each item is the request object returned by create, plus:
+
+- `my_role` — `CLIENT` when the caller sent the request, `VOLUNTEER` when it was sent to them
+- `client_name`
+- `volunteer_name`
+
+Email, phone, and password are not returned. A missing or invalid token returns `401`.
+
+```json
+[
+  {
+    "id": 1,
+    "client_id": 4,
+    "volunteer_id": 12,
+    "category": "Shopping",
+    "date": "2026-11-12",
+    "start_time": "10:00",
+    "duration": 2,
+    "location": "1 Kikar Safra, Jerusalem, Israel",
+    "description": "Help with grocery shopping.",
+    "status": "PENDING",
+    "my_role": "VOLUNTEER",
+    "client_name": "Dana Cohen",
+    "volunteer_name": "Avi Levi",
+    "...": "other create fields"
+  }
+]
 ```
 
 ---
@@ -523,17 +549,23 @@ GET /api/requests?status=PENDING
 POST /api/requests/{request_id}/approve
 ```
 
+No body.
+
 Requires:
 
-- VOLUNTEER role
-- Authenticated user must be the volunteer assigned to the request
-- Current status must be `PENDING`
+- VOLUNTEER role, otherwise `403`
+- The caller is the request's volunteer, otherwise `404` (another volunteer's request is reported as not found)
+- Current status is `PENDING`, otherwise `409`
+- The start time has not passed. An expired request is closed first as `REJECTED`, so approving it returns `409`.
+- No overlap with another `APPROVED` request of the same volunteer on the same date, otherwise `409`. Travel time is not checked here.
 
-Result:
+Result: `200` with the updated request.
 
 ```text
 PENDING → APPROVED
 ```
+
+Writes `VolunteerRequestApproved`.
 
 ---
 
@@ -543,35 +575,30 @@ PENDING → APPROVED
 POST /api/requests/{request_id}/reject
 ```
 
-Requires:
+No body. Same role, ownership, and `PENDING` rules as approve (`403`, `404`, `409`).
 
-- VOLUNTEER role
-- Authenticated user must be the assigned volunteer
-- Current status must be `PENDING`
-
-Result:
+Result: `200` with the updated request.
 
 ```text
 PENDING → REJECTED
 ```
 
+Writes `VolunteerRequestRejected`.
+
 ---
 
-## Complete Request
+## Automatic close
 
-```http
-POST /api/requests/{request_id}/complete
-```
-
-Marks an approved volunteering activity as completed.
-
-Result:
+There is no complete endpoint. A request closes on its own when its time passes:
 
 ```text
-APPROVED → COMPLETED
+APPROVED, and date + start_time + duration has passed → COMPLETED
+PENDING,  and date + start_time has passed            → REJECTED
 ```
 
-The exact authorization rule for marking an activity completed will be finalized during implementation.
+The check runs when requests are read: at the start of `GET /api/requests`, and before approve or reject. It uses the server's local time, the same clock as the stored date and time. Each change writes `VolunteerRequestCompleted` or `VolunteerRequestRejected` with `"acted_by": "SYSTEM"`. An expired `PENDING` request also has `"reason": "EXPIRED"`.
+
+Every status change uses a conditional update (`... WHERE id = :id AND status = :expected`). If the status changed in between, a manual action returns `409` and the automatic step skips the request, so no request gets two events for the same change.
 
 ---
 

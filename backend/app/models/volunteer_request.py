@@ -3,6 +3,10 @@ from datetime import datetime, timezone
 from app.extensions import db
 
 PENDING = "PENDING"
+APPROVED = "APPROVED"
+REJECTED = "REJECTED"
+COMPLETED = "COMPLETED"
+STATUSES = (PENDING, APPROVED, REJECTED, COMPLETED)
 
 
 def utc_now() -> datetime:
@@ -19,11 +23,11 @@ class VolunteerRequest(db.Model):
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     duration = db.Column(db.Integer, nullable=False)
-    location = db.Column(db.String(500), nullable=False)
+    location = db.Column(db.Unicode(500), nullable=False)
     google_place_id = db.Column(db.String(255), nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     location_cached_at = db.Column(db.DateTime, nullable=False)
-    description = db.Column(db.Text, nullable=False)
+    description = db.Column(db.UnicodeText, nullable=False)
     status = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utc_now)

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import { setStoredToken } from "../services/authService";
 import { searchVolunteers } from "../services/clientService";
 import { ALLOWED_CATEGORIES } from "../services/volunteerService";
@@ -13,13 +14,32 @@ const DAY_LABELS = {
   SATURDAY: "Saturday",
 };
 
-export default function SearchPage({ onLoggedOut, onShowProfile, onRequestVolunteer }) {
+const RADIUS_OPTIONS = [5, 10, 25, 50];
+
+export default function SearchPage({
+  prefill,
+  onLoggedOut,
+  onShowProfile,
+  onRequestVolunteer,
+}) {
+  // prefill is a rejected request whose details start the search.
   const [filters, setFilters] = useState({
-    category: "",
-    date: "",
-    start_time: "",
-    location: "",
+    category: prefill?.category || "",
+    date: prefill?.date || "",
+    start_time: prefill?.start_time || "",
+    locationText: prefill?.location || "",
+    radius_km: "10",
   });
+  const [place, setPlace] = useState(() =>
+    prefill
+      ? {
+          address: prefill.location,
+          google_place_id: prefill.google_place_id,
+          latitude: prefill.latitude,
+          longitude: prefill.longitude,
+        }
+      : null,
+  );
   const [volunteers, setVolunteers] = useState(null);
   const [error, setError] = useState("");
   const [searching, setSearching] = useState(false);
@@ -29,9 +49,19 @@ export default function SearchPage({ onLoggedOut, onShowProfile, onRequestVolunt
     setFilters((current) => ({ ...current, [name]: value }));
   }
 
+  const handleLocationText = useCallback((locationText) => {
+    setFilters((current) => ({ ...current, locationText }));
+  }, []);
+  const handlePlaceSelected = useCallback((selected) => setPlace(selected), []);
+  const handlePlaceCleared = useCallback(() => setPlace(null), []);
+
   async function handleSearch(event) {
     event.preventDefault();
     setError("");
+    if (filters.locationText.trim() && !place) {
+      setError("Choose a location from the suggestions, or clear the field.");
+      return;
+    }
     setVolunteers(null);
     setSearching(true);
     try {
@@ -39,7 +69,9 @@ export default function SearchPage({ onLoggedOut, onShowProfile, onRequestVolunt
         category: filters.category,
         date: filters.date,
         start_time: filters.start_time ? filters.start_time.slice(0, 5) : "",
-        location: filters.location,
+        latitude: place ? String(place.latitude) : "",
+        longitude: place ? String(place.longitude) : "",
+        radius_km: place ? filters.radius_km : "",
       });
       setVolunteers(data.volunteers || []);
     } catch (err) {
@@ -58,7 +90,11 @@ export default function SearchPage({ onLoggedOut, onShowProfile, onRequestVolunt
   return (
     <section className="card">
       <h1>Search volunteers</h1>
-      <p className="lede">Filter by category, time, and location.</p>
+      <p className="lede">
+        {prefill
+          ? "Filled in from your rejected request. Edit the filters and search again."
+          : "Filter by category, time, and location."}
+      </p>
       <form onSubmit={handleSearch}>
         <label>
           Category
@@ -89,15 +125,28 @@ export default function SearchPage({ onLoggedOut, onShowProfile, onRequestVolunt
             onChange={updateField}
           />
         </label>
+        <AddressAutocomplete
+          id="search-location"
+          label="Location"
+          value={filters.locationText}
+          onChange={handleLocationText}
+          onPlaceSelected={handlePlaceSelected}
+          onPlaceCleared={handlePlaceCleared}
+        />
         <label>
-          Location
-          <input
-            name="location"
-            type="text"
-            value={filters.location}
+          Distance
+          <select
+            name="radius_km"
+            value={filters.radius_km}
             onChange={updateField}
-            placeholder="Address text"
-          />
+            disabled={!place}
+          >
+            {RADIUS_OPTIONS.map((km) => (
+              <option key={km} value={String(km)}>
+                Within {km} km
+              </option>
+            ))}
+          </select>
         </label>
         {error ? <p className="error">{error}</p> : null}
         <div className="button-row">

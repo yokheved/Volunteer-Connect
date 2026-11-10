@@ -60,6 +60,7 @@ function installAddressStyles(widget) {
 
 export default function AddressAutocomplete({
   id,
+  label = "Address",
   value,
   onChange,
   onPlaceSelected,
@@ -156,7 +157,7 @@ export default function AddressAutocomplete({
 
   return (
     <label htmlFor={id} className="address-field">
-      Address
+      {label}
       <div ref={hostRef} />
       {mapsError ? <p className="error">{mapsError}</p> : null}
     </label>

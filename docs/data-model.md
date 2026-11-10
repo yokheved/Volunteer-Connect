@@ -200,11 +200,11 @@ created_at
 | date | Requested date |
 | start_time | Starting time |
 | duration | Expected duration |
-| location | Task location (the client's formatted address at creation time) |
-| google_place_id | Copied from the client at creation time |
-| latitude | Copied from the client at creation time |
-| longitude | Copied from the client at creation time |
-| location_cached_at | Copied from the client at creation time; this copy does not start a new 30-day cache |
+| location | Task location (formatted address chosen by the client; defaults to their profile address) |
+| google_place_id | Place id of the task location |
+| latitude | Latitude of the task location |
+| longitude | Longitude of the task location |
+| location_cached_at | When the coordinates were stored; copied from the client when the profile place is used |
 | description | Free-text task description |
 | status | Current request state |
 | created_at | Request creation timestamp |
@@ -215,7 +215,7 @@ created_at
 users.id
 ```
 
-`location`, `google_place_id`, `latitude`, `longitude`, and `location_cached_at` are copied from the client when the request is created. They are not typed in the request body and are not selected again through Google Places.
+The task location is a place the client picks through Google Places when creating the request. The form starts with the client's profile address, which the client can change. If the body omits the location, `location`, `google_place_id`, `latitude`, `longitude`, and `location_cached_at` are copied from the client's profile.
 
 ---
 
@@ -267,7 +267,7 @@ An approved request becomes:
 COMPLETED
 ```
 
-after the volunteering activity has been performed.
+automatically once its end time (`date + start_time + duration`) has passed. A `PENDING` request whose start time has passed becomes `REJECTED` automatically, because the volunteer did not answer in time. The server makes these changes when requests are read, and writes the matching event with `acted_by: "SYSTEM"`. There is no manual complete action.
 
 Completed duration contributes to the volunteer's monthly-hours progress.
 

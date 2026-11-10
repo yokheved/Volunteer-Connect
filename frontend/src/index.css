@@ -256,3 +256,47 @@ button.link {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+.request-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.request-footer .button-row {
+  margin-top: 0;
+}
+
+button.danger {
+  background: #9b1c1c;
+}
+
+.status {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.status-pending {
+  background: #fff4d6;
+  color: #7a5200;
+}
+
+.status-approved {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.status-rejected {
+  background: #fdecea;
+  color: #9b1c1c;
+}
+
+.status-completed {
+  background: #e3ecf7;
+  color: #1d3f6e;
+}
